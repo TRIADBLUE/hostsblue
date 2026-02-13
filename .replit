@@ -3,15 +3,13 @@ modules = ["nodejs-20"]
 [nix]
 channel = "unstable"
 
-[unitTest]
-language = "nodejs"
-
 [build]
 target = "build"
-command = "npm install && npm run build"
+command = "npm run build"
 
 [env]
 PATH = "/opt/nodejs/bin:/home/runner/.cargo/bin:/home/runner/.local/bin:$PATH"
+NODE_ENV = "production"
 
 [[ports]]
 localPort = 5000
@@ -20,14 +18,6 @@ externalPort = 80
 [versionControl]
 enabled = true
 
-[workflows]
-runButton = "run"
-
-[[workflows.workflow.paneButton.clickButton]]
-id = "build"
-
-[[workflows.workflow.paneButton.clickButton]]
-id = "run"
-
 [workflow]
 run = "npm start"
+
