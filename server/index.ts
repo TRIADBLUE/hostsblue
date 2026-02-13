@@ -3,8 +3,13 @@ import session from 'express-session';
 import ConnectPgSimple from 'connect-pg-simple';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import * as schema from '../shared/schema.js';
 import { registerRoutes } from './routes.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -75,7 +80,7 @@ app.use((req, res, next) => {
 });
 
 // Register all API routes
-registerRoutes(app);
+registerRoutes(app, db);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -85,6 +90,17 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Serve static files from Vite build output in production
+if (NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '../dist/client');
+  app.use(express.static(distPath));
+  
+  // SPA fallback: serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
