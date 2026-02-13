@@ -92,12 +92,17 @@ app.get('/api/health', (req, res) => {
 });
 
 // Serve static files from Vite build output (both dev and production)
-const distPath = path.join(__dirname, '../dist/client');
+const distPath = path.resolve(process.cwd(), 'dist/client');
 app.use(express.static(distPath));
 
 // SPA fallback: serve index.html for all non-API routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
 });
 
 // Global error handler
