@@ -94,7 +94,7 @@ app.get('/api/health', (req, res) => {
 
 // Test route
 app.get('/test', (req, res) => {
-  res.json({ message: 'Server is working' });
+  res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
 // Serve static files from public folder (fallback) or dist (built frontend)
