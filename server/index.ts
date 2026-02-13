@@ -5,6 +5,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import * as schema from '../shared/schema.js';
 import { registerRoutes } from './routes.js';
 
@@ -91,18 +92,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve static files from Vite build output (both dev and production)
+// Serve static files from Vite build output
 const distPath = path.resolve(process.cwd(), 'dist/client');
+console.log(`Serving static files from: ${distPath}`);
+console.log(`Directory exists: ${fs.existsSync(distPath)}`);
 app.use(express.static(distPath));
 
 // SPA fallback: serve index.html for all non-API routes
 app.get('*', (req, res) => {
   const indexPath = path.join(distPath, 'index.html');
-  if (require('fs').existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).json({ error: 'Not found' });
-  }
+  console.log(`SPA fallback request to ${req.path}, serving ${indexPath}`);
+  res.sendFile(indexPath, (err) => {
+    if (err) console.error('Error serving index.html:', err);
+  });
 });
 
 // Global error handler
