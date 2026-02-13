@@ -1,6 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { eq, and, desc, like, sql, inArray } from 'drizzle-orm';
-import { db } from './index.js';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../shared/schema.js';
 import { authenticateToken, requireAuth, generateTokens } from './middleware/auth.js';
 import { OpenSRSIntegration } from './services/openrs-integration.js';
@@ -8,12 +8,6 @@ import { WPMUDevIntegration } from './services/wpmudev-integration.js';
 import { SwipesBluePayment } from './services/swipesblue-payment.js';
 import { OrderOrchestrator } from './services/order-orchestration.js';
 import { ZodError, z } from 'zod';
-
-// Initialize services
-const openSRS = new OpenSRSIntegration();
-const wpmudev = new WPMUDevIntegration();
-const swipesblue = new SwipesBluePayment();
-const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev);
 
 // Validation schemas
 const domainSearchSchema = z.object({
@@ -53,8 +47,12 @@ const asyncHandler = (fn: (req: Request, res: Response) => Promise<any>) => {
   };
 };
 
-export function registerRoutes(app: Express) {
-  
+export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schema>) {
+  // Initialize services
+  const openSRS = new OpenSRSIntegration();
+  const wpmudev = new WPMUDevIntegration();
+  const swipesblue = new SwipesBluePayment();
+  const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev);
   // ============================================================================
   // AUTH ROUTES
   // ============================================================================
