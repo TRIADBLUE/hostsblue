@@ -30,7 +30,7 @@ export function CheckoutPage() {
   if (isLoading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -98,7 +98,7 @@ export function CheckoutPage() {
             <div className="bg-white border border-gray-200 rounded-[7px] p-6 mt-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Method</h2>
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-[7px] border border-gray-200">
-                <div className="w-12 h-8 bg-[#1844A6] rounded flex items-center justify-center">
+                <div className="w-12 h-8 bg-[#064A6C] rounded flex items-center justify-center">
                   <span className="text-white font-bold text-xs">SB</span>
                 </div>
                 <div>
@@ -145,7 +145,7 @@ export function CheckoutPage() {
               <button
                 onClick={handleCheckout}
                 disabled={isProcessing}
-                className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-4 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-4 rounded-[7px] transition-colors flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>

@@ -12,7 +12,7 @@ export function BillingPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -46,8 +46,8 @@ export function BillingPage() {
       <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-white border border-gray-200 rounded-[7px] p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Receipt className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Total Orders</h3>
           </div>
@@ -57,8 +57,8 @@ export function BillingPage() {
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Active Subscriptions</h3>
           </div>
@@ -70,15 +70,15 @@ export function BillingPage() {
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Payment Methods</h3>
           </div>
           <p className="text-gray-500 text-sm">No payment methods saved</p>
           <button
             onClick={() => alert('Payment method management coming soon')}
-            className="text-[#1844A6] hover:text-[#133A8A] text-sm mt-3 font-medium"
+            className="text-[#064A6C] hover:text-[#053C58] text-sm mt-3 font-medium"
           >
             Add Payment Method
           </button>
@@ -89,7 +89,7 @@ export function BillingPage() {
       <div className="bg-white border border-gray-200 rounded-[7px] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
-          <Link to="/dashboard/orders" className="text-[#1844A6] text-sm hover:text-[#133A8A]">
+          <Link to="/dashboard/orders" className="text-[#064A6C] text-sm hover:text-[#053C58]">
             View All Orders
           </Link>
         </div>
@@ -128,7 +128,7 @@ export function BillingPage() {
                     <td className="py-4">
                       <Link
                         to={`/dashboard/orders/${order.uuid}`}
-                        className="text-[#1844A6] hover:text-[#133A8A] flex items-center gap-1 text-sm"
+                        className="text-[#064A6C] hover:text-[#053C58] flex items-center gap-1 text-sm"
                       >
                         View
                         <ExternalLink className="w-3 h-3" />

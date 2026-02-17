@@ -26,8 +26,8 @@ export function SecurityPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">SSL Certificates</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {sslTypes.map((ssl) => (
-            <div key={ssl.name} className={`bg-white border rounded-[7px] p-6 ${ssl.popular ? 'border-[#1844A6] shadow-md' : 'border-gray-200'}`}>
-              <Lock className="w-8 h-8 text-[#1844A6] mb-4" />
+            <div key={ssl.name} className={`bg-white border rounded-[7px] p-6 ${ssl.popular ? 'border-[#064A6C] shadow-md' : 'border-gray-200'}`}>
+              <Lock className="w-8 h-8 text-[#064A6C] mb-4" />
               <h3 className="font-semibold text-gray-900 mb-1">{ssl.name}</h3>
               <p className="text-2xl font-bold text-gray-900 mb-2">{ssl.price}</p>
               <p className="text-sm text-gray-500 mb-4">{ssl.desc}</p>
@@ -50,9 +50,9 @@ export function SecurityPage() {
         <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">SiteLock Security</h2>
         <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {sitelockPlans.map((plan) => (
-            <div key={plan.name} className={`bg-white border rounded-[7px] p-6 ${plan.popular ? 'border-[#1844A6] shadow-md relative' : 'border-gray-200'}`}>
-              {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-[#1844A6] text-white text-xs font-medium px-3 py-1 rounded-full">Recommended</span></div>}
-              <Shield className="w-8 h-8 text-[#1844A6] mb-4" />
+            <div key={plan.name} className={`bg-white border rounded-[7px] p-6 ${plan.popular ? 'border-[#064A6C] shadow-md relative' : 'border-gray-200'}`}>
+              {plan.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2"><span className="bg-[#064A6C] text-white text-xs font-medium px-3 py-1 rounded-full">Recommended</span></div>}
+              <Shield className="w-8 h-8 text-[#064A6C] mb-4" />
               <h3 className="font-semibold text-gray-900 mb-1">{plan.name}</h3>
               <p className="text-2xl font-bold text-gray-900 mb-4">{plan.price}</p>
               <ul className="space-y-2">

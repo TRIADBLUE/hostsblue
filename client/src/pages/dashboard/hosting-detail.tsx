@@ -15,7 +15,7 @@ export function HostingDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -24,7 +24,7 @@ export function HostingDetailPage() {
     return (
       <div className="bg-white border border-gray-200 rounded-[7px] text-center py-16 px-6">
         <h3 className="text-lg font-medium text-gray-900 mb-2">Hosting account not found</h3>
-        <Link to="/dashboard/hosting" className="text-[#1844A6] hover:text-[#133A8A]">
+        <Link to="/dashboard/hosting" className="text-[#064A6C] hover:text-[#053C58]">
           Back to hosting
         </Link>
       </div>
@@ -44,8 +44,8 @@ export function HostingDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
-            <Server className="w-6 h-6 text-[#1844A6]" />
+          <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center">
+            <Server className="w-6 h-6 text-[#064A6C]" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{account.siteName}</h1>
@@ -115,7 +115,7 @@ export function HostingDetailPage() {
                   href={`https://${account.primaryDomain}/wp-admin`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[#1844A6] flex items-center gap-1 hover:text-[#133A8A]"
+                  className="text-[#064A6C] flex items-center gap-1 hover:text-[#053C58]"
                 >
                   Open WP Admin
                   <ExternalLink className="w-3 h-3" />

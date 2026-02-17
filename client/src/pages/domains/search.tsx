@@ -73,13 +73,13 @@ export function DomainSearchPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Enter domain name (e.g., mybusiness)"
-              className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-[7px] text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+              className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-[7px] text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading || !query}
-            className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium px-6 py-4 rounded-[7px] flex items-center gap-2 whitespace-nowrap transition-colors disabled:opacity-50"
+            className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium px-6 py-4 rounded-[7px] flex items-center gap-2 whitespace-nowrap transition-colors disabled:opacity-50"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -135,7 +135,7 @@ export function DomainSearchPage() {
                             className={`px-4 py-2 rounded-[7px] text-sm font-medium transition-colors ${
                               isInCart
                                 ? 'bg-green-50 text-green-600 cursor-default'
-                                : 'bg-[#1844A6] hover:bg-[#133A8A] text-white'
+                                : 'bg-[#064A6C] hover:bg-[#053C58] text-white'
                             }`}
                           >
                             {isInCart ? 'In Cart' : 'Add to Cart'}
@@ -160,7 +160,7 @@ export function DomainSearchPage() {
         <div className="lg:col-span-1">
           <div className="bg-white border border-gray-200 rounded-[7px] p-6 sticky top-24">
             <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="w-5 h-5 text-[#1844A6]" />
+              <ShoppingCart className="w-5 h-5 text-[#064A6C]" />
               <h2 className="text-lg font-semibold text-gray-900">Your Cart</h2>
               <span className="ml-auto text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{cart.length} items</span>
             </div>
@@ -199,7 +199,7 @@ export function DomainSearchPage() {
                 <button
                   onClick={() => createOrderMutation.mutate()}
                   disabled={createOrderMutation.isPending}
-                  className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors mt-4"
+                  className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors mt-4"
                 >
                   {createOrderMutation.isPending ? (
                     <>

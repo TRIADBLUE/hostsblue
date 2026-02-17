@@ -47,7 +47,7 @@ export function SupportPage() {
   if (ticketsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -68,7 +68,7 @@ export function SupportPage() {
 
         {ticketLoading ? (
           <div className="flex items-center justify-center h-32">
-            <Loader2 className="w-6 h-6 text-[#1844A6] animate-spin" />
+            <Loader2 className="w-6 h-6 text-[#064A6C] animate-spin" />
           </div>
         ) : selectedTicket ? (
           <>
@@ -104,7 +104,7 @@ export function SupportPage() {
                     key={index}
                     className={`p-4 rounded-[7px] ${
                       msg.fromStaff
-                        ? 'bg-blue-50 border border-blue-100'
+                        ? 'bg-teal-50 border border-blue-100'
                         : 'bg-gray-50 border border-gray-200'
                     }`}
                   >
@@ -135,7 +135,7 @@ export function SupportPage() {
                   onChange={(e) => setReplyMessage(e.target.value)}
                   placeholder="Type your reply..."
                   rows={4}
-                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm resize-none"
+                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm resize-none"
                 />
                 <div className="flex justify-end mt-3">
                   <button
@@ -204,7 +204,7 @@ export function SupportPage() {
                   value={newTicketSubject}
                   onChange={(e) => setNewTicketSubject(e.target.value)}
                   placeholder="Brief description of your issue"
-                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
                 />
               </div>
               <div>
@@ -212,7 +212,7 @@ export function SupportPage() {
                 <select
                   value={newTicketPriority}
                   onChange={(e) => setNewTicketPriority(e.target.value)}
-                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm bg-white"
+                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm bg-white"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -226,7 +226,7 @@ export function SupportPage() {
                   onChange={(e) => setNewTicketMessage(e.target.value)}
                   placeholder="Describe your issue in detail..."
                   rows={5}
-                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm resize-none"
+                  className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm resize-none"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
@@ -268,8 +268,8 @@ export function SupportPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-[#1844A6]" />
+                  <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5 text-[#064A6C]" />
                   </div>
                   <div>
                     <h3 className="text-gray-900 font-medium">{ticket.subject}</h3>
@@ -293,7 +293,7 @@ export function SupportPage() {
                     </div>
                   </div>
                 </div>
-                <span className="text-[#1844A6] text-sm hidden sm:inline">View thread</span>
+                <span className="text-[#064A6C] text-sm hidden sm:inline">View thread</span>
               </div>
             </button>
           ))}

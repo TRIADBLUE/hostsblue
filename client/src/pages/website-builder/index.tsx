@@ -17,8 +17,8 @@ export function WebsiteBuilderPage() {
           { icon: Globe, title: 'Custom Domain', desc: 'Connect your own domain name' },
         ].map(({ icon: Icon, title, desc }) => (
           <div key={title} className="bg-white border border-gray-200 rounded-[7px] p-6 text-center">
-            <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Icon className="w-6 h-6 text-[#1844A6]" />
+            <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Icon className="w-6 h-6 text-[#064A6C]" />
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
             <p className="text-sm text-gray-500">{desc}</p>
@@ -26,7 +26,7 @@ export function WebsiteBuilderPage() {
         ))}
       </div>
       <div className="text-center mt-12">
-        <Link to="/register" className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium px-8 py-3 rounded-[7px] transition-colors inline-flex items-center gap-2">
+        <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium px-8 py-3 rounded-[7px] transition-colors inline-flex items-center gap-2">
           Get Notified When Available
         </Link>
       </div>

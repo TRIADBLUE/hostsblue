@@ -106,9 +106,9 @@ export function AboutPage() {
               active: false,
             },
           ].map(({ icon: Icon, name, tagline, active }) => (
-            <div key={name} className={`bg-white border rounded-[7px] p-6 text-center ${active ? 'border-[#1844A6] shadow-sm' : 'border-gray-200'}`}>
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Icon className="w-6 h-6 text-[#1844A6]" />
+            <div key={name} className={`bg-white border rounded-[7px] p-6 text-center ${active ? 'border-[#064A6C] shadow-sm' : 'border-gray-200'}`}>
+              <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Icon className="w-6 h-6 text-[#064A6C]" />
               </div>
               <p className="text-lg font-bold mb-1">
                 <span className="text-gray-900">{name.replace('blue', '')}</span>
@@ -132,7 +132,7 @@ export function AboutPage() {
           Join thousands of businesses that trust HostsBlue for their web presence.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/register" className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
+          <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
             Create Account
           </Link>
           <Link to="/pricing" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">

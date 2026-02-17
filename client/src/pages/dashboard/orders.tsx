@@ -12,7 +12,7 @@ export function OrdersPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -78,7 +78,7 @@ export function OrdersPage() {
                     <td className="py-4 px-6">
                       <Link
                         to={`/dashboard/orders/${order.uuid}`}
-                        className="text-[#1844A6] hover:text-[#133A8A] flex items-center gap-1 text-sm"
+                        className="text-[#064A6C] hover:text-[#053C58] flex items-center gap-1 text-sm"
                       >
                         View
                         <ExternalLink className="w-3 h-3" />

@@ -55,7 +55,7 @@ export function DashboardLayout() {
                 to={item.href}
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                   active
-                    ? 'bg-blue-50 text-[#1844A6] font-medium border-r-2 border-[#1844A6]'
+                    ? 'bg-teal-50 text-[#064A6C] font-medium border-r-2 border-[#064A6C]'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
@@ -86,7 +86,7 @@ export function DashboardLayout() {
         <div className="p-4 border-t border-gray-200">
           <div className="flex items-center gap-3 mb-3 px-2">
             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-[#1844A6] text-sm font-medium">
+              <span className="text-[#064A6C] text-sm font-medium">
                 {customer?.firstName?.[0] || customer?.email?.[0] || '?'}
               </span>
             </div>

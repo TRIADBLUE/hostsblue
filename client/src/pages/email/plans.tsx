@@ -36,8 +36,8 @@ export function EmailPlansPage() {
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Professional Email Hosting</h1>
         <p className="text-gray-500 max-w-2xl mx-auto">Secure, reliable email for your business domain with spam protection and mobile access.</p>
         <div className="flex items-center justify-center gap-4 mt-8">
-          <button onClick={() => setBilling('monthly')} className={`px-4 py-2 rounded-[7px] font-medium transition-colors ${billing === 'monthly' ? 'bg-[#1844A6] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Monthly</button>
-          <button onClick={() => setBilling('yearly')} className={`px-4 py-2 rounded-[7px] font-medium transition-colors ${billing === 'yearly' ? 'bg-[#1844A6] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button onClick={() => setBilling('monthly')} className={`px-4 py-2 rounded-[7px] font-medium transition-colors ${billing === 'monthly' ? 'bg-[#064A6C] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>Monthly</button>
+          <button onClick={() => setBilling('yearly')} className={`px-4 py-2 rounded-[7px] font-medium transition-colors ${billing === 'yearly' ? 'bg-[#064A6C] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
             Yearly <span className="ml-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Save 17%</span>
           </button>
         </div>
@@ -45,14 +45,14 @@ export function EmailPlansPage() {
 
       <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
         {emailPlans.map((plan) => (
-          <div key={plan.name} className={`bg-white border rounded-[7px] p-6 transition-all ${plan.popular ? 'border-[#1844A6] shadow-md relative' : 'border-gray-200'}`}>
+          <div key={plan.name} className={`bg-white border rounded-[7px] p-6 transition-all ${plan.popular ? 'border-[#064A6C] shadow-md relative' : 'border-gray-200'}`}>
             {plan.popular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-[#1844A6] text-white text-xs font-medium px-3 py-1 rounded-full">Most Popular</span>
+                <span className="bg-[#064A6C] text-white text-xs font-medium px-3 py-1 rounded-full">Most Popular</span>
               </div>
             )}
             <div className="text-center mb-6">
-              <Mail className="w-8 h-8 text-[#1844A6] mx-auto mb-3" />
+              <Mail className="w-8 h-8 text-[#064A6C] mx-auto mb-3" />
               <h3 className="text-xl font-semibold text-gray-900">{plan.name}</h3>
             </div>
             <div className="text-center mb-6">
@@ -68,7 +68,7 @@ export function EmailPlansPage() {
                 </li>
               ))}
             </ul>
-            <Link to="/register" className={`block text-center py-3 rounded-[7px] font-medium transition-colors ${plan.popular ? 'bg-[#1844A6] hover:bg-[#133A8A] text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+            <Link to="/register" className={`block text-center py-3 rounded-[7px] font-medium transition-colors ${plan.popular ? 'bg-[#064A6C] hover:bg-[#053C58] text-white' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
               Get Started
             </Link>
           </div>

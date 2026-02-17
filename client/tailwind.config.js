@@ -11,10 +11,11 @@ export default {
       },
       colors: {
         hostsblue: {
-          'blue-deep': '#1844A6',
+          'teal': '#064A6C',       // Primary: buttons, links, active states
+          'teal-hover': '#053C58', // Primary hover
+          'blue-deep': '#1844A6',  // Secondary: dark sections, secondary buttons
           'blue-pure': '#0000FF',
           'green': '#008060',
-          'teal': '#064A6C',
         },
         status: {
           success: '#16A34A',

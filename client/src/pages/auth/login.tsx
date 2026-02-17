@@ -49,7 +49,7 @@ export function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="you@example.com"
                   required
                 />
@@ -67,7 +67,7 @@ export function LoginPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="••••••••"
                   required
                 />
@@ -83,10 +83,10 @@ export function LoginPage() {
 
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 text-gray-500 cursor-pointer">
-                <input type="checkbox" className="rounded border-gray-300 text-[#1844A6] focus:ring-[#1844A6]" />
+                <input type="checkbox" className="rounded border-gray-300 text-[#064A6C] focus:ring-[#064A6C]" />
                 Remember me
               </label>
-              <Link to="/forgot-password" className="text-[#1844A6] hover:text-[#133A8A] font-medium">
+              <Link to="/forgot-password" className="text-[#064A6C] hover:text-[#053C58] font-medium">
                 Forgot password?
               </Link>
             </div>
@@ -94,7 +94,7 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={isLoginLoading}
-              className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
             >
               {isLoginLoading ? (
                 <>
@@ -111,7 +111,7 @@ export function LoginPage() {
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-6">
           Don't have an account?{' '}
-          <Link to="/register" className="text-[#1844A6] hover:text-[#133A8A] font-medium">
+          <Link to="/register" className="text-[#064A6C] hover:text-[#053C58] font-medium">
             Create one
           </Link>
         </p>

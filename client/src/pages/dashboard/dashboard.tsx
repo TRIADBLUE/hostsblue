@@ -23,7 +23,7 @@ export function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -40,8 +40,8 @@ export function DashboardPage() {
       <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Globe className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Globe className="w-5 h-5 text-[#064A6C]" />
             </div>
             <span className="badge badge-neutral">{stats?.domains?.total || 0} Total</span>
           </div>
@@ -61,8 +61,8 @@ export function DashboardPage() {
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Server className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Server className="w-5 h-5 text-[#064A6C]" />
             </div>
             <span className="badge badge-neutral">{stats?.hosting?.total || 0} Total</span>
           </div>
@@ -74,8 +74,8 @@ export function DashboardPage() {
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <ShoppingCart className="w-5 h-5 text-[#064A6C]" />
             </div>
           </div>
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
@@ -86,8 +86,8 @@ export function DashboardPage() {
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Mail className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Mail className="w-5 h-5 text-[#064A6C]" />
             </div>
           </div>
           <h3 className="text-3xl font-bold text-gray-900 mb-1">0</h3>
@@ -99,39 +99,39 @@ export function DashboardPage() {
       <div className="grid md:grid-cols-3 gap-6">
         <Link to="/dashboard/ssl" className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow group">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <ShieldCheck className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">SSL Certificates</h3>
           </div>
           <p className="text-gray-500 text-sm">Manage your SSL certificates and security</p>
-          <span className="text-[#1844A6] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
+          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
             View SSL <ArrowRight className="w-3 h-3" />
           </span>
         </Link>
 
         <Link to="/dashboard/sitelock" className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow group">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Shield className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Shield className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">SiteLock</h3>
           </div>
           <p className="text-gray-500 text-sm">Website security scanning and malware protection</p>
-          <span className="text-[#1844A6] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
+          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
             View SiteLock <ArrowRight className="w-3 h-3" />
           </span>
         </Link>
 
         <Link to="/dashboard/website-builder" className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow group">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Palette className="w-5 h-5 text-[#1844A6]" />
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Palette className="w-5 h-5 text-[#064A6C]" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900">Website Builder</h3>
           </div>
           <p className="text-gray-500 text-sm">Build and manage your website projects</p>
-          <span className="text-[#1844A6] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
+          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
             View Projects <ArrowRight className="w-3 h-3" />
           </span>
         </Link>
@@ -145,7 +145,7 @@ export function DashboardPage() {
             to="/domains/search"
             className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
           >
-            <Globe className="w-5 h-5 text-[#1844A6]" />
+            <Globe className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Search Domains</span>
             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
           </Link>
@@ -153,7 +153,7 @@ export function DashboardPage() {
             to="/hosting"
             className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
           >
-            <Server className="w-5 h-5 text-[#1844A6]" />
+            <Server className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">View Hosting Plans</span>
             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
           </Link>
@@ -161,7 +161,7 @@ export function DashboardPage() {
             to="/dashboard/domains"
             className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
           >
-            <Globe className="w-5 h-5 text-[#1844A6]" />
+            <Globe className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Manage Domains</span>
             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
           </Link>
@@ -169,7 +169,7 @@ export function DashboardPage() {
             to="/dashboard/hosting"
             className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
           >
-            <Server className="w-5 h-5 text-[#1844A6]" />
+            <Server className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Manage Hosting</span>
             <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
           </Link>
@@ -180,7 +180,7 @@ export function DashboardPage() {
       <div className="bg-white border border-gray-200 rounded-[7px] p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-          <Link to="/dashboard/orders" className="text-[#1844A6] text-sm hover:text-[#133A8A]">
+          <Link to="/dashboard/orders" className="text-[#064A6C] text-sm hover:text-[#053C58]">
             View All
           </Link>
         </div>

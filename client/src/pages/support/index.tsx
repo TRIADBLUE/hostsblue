@@ -66,8 +66,8 @@ export function SupportPage() {
           {categories.map(({ icon: Icon, title, desc }) => (
             <div key={title} className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-6 h-6 text-[#1844A6]" />
+                <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Icon className="w-6 h-6 text-[#064A6C]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{title}</h3>
@@ -131,7 +131,7 @@ export function SupportPage() {
                     type="text"
                     value={contactForm.name}
                     onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                     placeholder="Your name"
                   />
                 </div>
@@ -142,7 +142,7 @@ export function SupportPage() {
                     type="email"
                     value={contactForm.email}
                     onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                     placeholder="you@example.com"
                   />
                 </div>
@@ -155,7 +155,7 @@ export function SupportPage() {
                   type="text"
                   value={contactForm.subject}
                   onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="How can we help?"
                 />
               </div>
@@ -167,14 +167,14 @@ export function SupportPage() {
                   value={contactForm.message}
                   onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
                   rows={5}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent resize-none"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent resize-none"
                   placeholder="Describe your issue or question..."
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 Send Message

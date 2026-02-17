@@ -92,8 +92,8 @@ export function SettingsPage() {
       {/* Profile Section */}
       <form onSubmit={handleProfileSubmit} className="bg-white border border-gray-200 rounded-[7px] p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-            <User className="w-5 h-5 text-[#1844A6]" />
+          <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+            <User className="w-5 h-5 text-[#064A6C]" />
           </div>
           <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
         </div>
@@ -105,7 +105,7 @@ export function SettingsPage() {
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -114,7 +114,7 @@ export function SettingsPage() {
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -123,7 +123,7 @@ export function SettingsPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -133,7 +133,7 @@ export function SettingsPage() {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               placeholder="Optional"
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -143,7 +143,7 @@ export function SettingsPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Optional"
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -158,7 +158,7 @@ export function SettingsPage() {
                 type="text"
                 value={address1}
                 onChange={(e) => setAddress1(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div className="md:col-span-2">
@@ -168,7 +168,7 @@ export function SettingsPage() {
                 value={address2}
                 onChange={(e) => setAddress2(e.target.value)}
                 placeholder="Apartment, suite, etc. (optional)"
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div>
@@ -177,7 +177,7 @@ export function SettingsPage() {
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div>
@@ -186,7 +186,7 @@ export function SettingsPage() {
                 type="text"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div>
@@ -195,7 +195,7 @@ export function SettingsPage() {
                 type="text"
                 value={zip}
                 onChange={(e) => setZip(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div>
@@ -204,7 +204,7 @@ export function SettingsPage() {
                 type="text"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
           </div>
@@ -235,8 +235,8 @@ export function SettingsPage() {
       {/* Password Section */}
       <form onSubmit={handlePasswordSubmit} className="bg-white border border-gray-200 rounded-[7px] p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-            <Lock className="w-5 h-5 text-[#1844A6]" />
+          <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+            <Lock className="w-5 h-5 text-[#064A6C]" />
           </div>
           <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
         </div>
@@ -248,7 +248,7 @@ export function SettingsPage() {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -258,7 +258,7 @@ export function SettingsPage() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="Minimum 8 characters"
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
           <div>
@@ -267,7 +267,7 @@ export function SettingsPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent text-sm"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -297,8 +297,8 @@ export function SettingsPage() {
       {/* Notification Preferences */}
       <div className="bg-white border border-gray-200 rounded-[7px] p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-            <Bell className="w-5 h-5 text-[#1844A6]" />
+          <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+            <Bell className="w-5 h-5 text-[#064A6C]" />
           </div>
           <h2 className="text-lg font-semibold text-gray-900">Notification Preferences</h2>
         </div>
@@ -316,7 +316,7 @@ export function SettingsPage() {
                 onChange={(e) => setEmailNotifications(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#1844A6] rounded-full peer peer-checked:bg-[#1844A6] transition-colors cursor-pointer" onClick={() => setEmailNotifications(!emailNotifications)}>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setEmailNotifications(!emailNotifications)}>
                 <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${emailNotifications ? 'translate-x-5' : ''}`} />
               </div>
             </div>
@@ -334,7 +334,7 @@ export function SettingsPage() {
                 onChange={(e) => setRenewalReminders(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#1844A6] rounded-full peer peer-checked:bg-[#1844A6] transition-colors cursor-pointer" onClick={() => setRenewalReminders(!renewalReminders)}>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setRenewalReminders(!renewalReminders)}>
                 <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${renewalReminders ? 'translate-x-5' : ''}`} />
               </div>
             </div>
@@ -352,7 +352,7 @@ export function SettingsPage() {
                 onChange={(e) => setSecurityAlerts(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#1844A6] rounded-full peer peer-checked:bg-[#1844A6] transition-colors cursor-pointer" onClick={() => setSecurityAlerts(!securityAlerts)}>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setSecurityAlerts(!securityAlerts)}>
                 <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${securityAlerts ? 'translate-x-5' : ''}`} />
               </div>
             </div>
@@ -370,7 +370,7 @@ export function SettingsPage() {
                 onChange={(e) => setMarketingEmails(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#1844A6] rounded-full peer peer-checked:bg-[#1844A6] transition-colors cursor-pointer" onClick={() => setMarketingEmails(!marketingEmails)}>
+              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setMarketingEmails(!marketingEmails)}>
                 <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${marketingEmails ? 'translate-x-5' : ''}`} />
               </div>
             </div>

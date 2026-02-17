@@ -29,9 +29,9 @@ export function CartDrawer({ isOpen, onClose, items, subtotal, onRemoveItem, onC
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-[#1844A6]" />
+            <ShoppingCart className="w-5 h-5 text-[#064A6C]" />
             <h2 className="text-lg font-semibold text-gray-900">Your Cart</h2>
-            <span className="bg-[#1844A6] text-white text-xs font-medium px-2 py-0.5 rounded-full">
+            <span className="bg-[#064A6C] text-white text-xs font-medium px-2 py-0.5 rounded-full">
               {items.length}
             </span>
           </div>
@@ -55,7 +55,7 @@ export function CartDrawer({ isOpen, onClose, items, subtotal, onRemoveItem, onC
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-900 truncate">{item.name}</p>
                     <p className="text-sm text-gray-500 truncate">{item.description}</p>
-                    <p className="text-sm font-medium text-[#1844A6] mt-1">
+                    <p className="text-sm font-medium text-[#064A6C] mt-1">
                       {formatPrice(item.price)}
                       {item.termMonths > 0 && (
                         <span className="text-gray-400 font-normal">

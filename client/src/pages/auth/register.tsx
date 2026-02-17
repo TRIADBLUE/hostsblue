@@ -66,7 +66,7 @@ export function RegisterPage() {
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => updateField('firstName', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="John"
                   required
                 />
@@ -78,7 +78,7 @@ export function RegisterPage() {
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => updateField('lastName', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="Doe"
                   required
                 />
@@ -97,7 +97,7 @@ export function RegisterPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="you@example.com"
                   required
                 />
@@ -116,7 +116,7 @@ export function RegisterPage() {
                   type={showPassword ? 'text' : 'password'}
                   value={formData.password}
                   onChange={(e) => updateField('password', e.target.value)}
-                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                  className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                   placeholder="••••••••"
                   required
                   minLength={8}
@@ -142,7 +142,7 @@ export function RegisterPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={formData.confirmPassword}
                 onChange={(e) => updateField('confirmPassword', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                 placeholder="••••••••"
                 required
               />
@@ -154,21 +154,21 @@ export function RegisterPage() {
                 type="checkbox"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-[#1844A6] focus:ring-[#1844A6]"
+                className="mt-1 rounded border-gray-300 text-[#064A6C] focus:ring-[#064A6C]"
                 required
               />
               <span>
                 I agree to the{' '}
-                <a href="#" className="text-[#1844A6] hover:text-[#133A8A]">Terms of Service</a>
+                <a href="#" className="text-[#064A6C] hover:text-[#053C58]">Terms of Service</a>
                 {' '}and{' '}
-                <a href="#" className="text-[#1844A6] hover:text-[#133A8A]">Privacy Policy</a>
+                <a href="#" className="text-[#064A6C] hover:text-[#053C58]">Privacy Policy</a>
               </span>
             </label>
 
             <button
               type="submit"
               disabled={isRegisterLoading || !acceptTerms}
-              className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isRegisterLoading ? (
                 <>
@@ -185,7 +185,7 @@ export function RegisterPage() {
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-6">
           Already have an account?{' '}
-          <Link to="/login" className="text-[#1844A6] hover:text-[#133A8A] font-medium">
+          <Link to="/login" className="text-[#064A6C] hover:text-[#053C58] font-medium">
             Sign in
           </Link>
         </p>

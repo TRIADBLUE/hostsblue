@@ -28,7 +28,7 @@ export function CheckoutSuccessPage() {
         <div className="space-y-3">
           <Link
             to="/dashboard"
-            className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
           >
             <LayoutDashboard className="w-4 h-4" />
             Go to Dashboard

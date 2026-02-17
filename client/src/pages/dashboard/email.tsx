@@ -22,7 +22,7 @@ export function EmailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -48,8 +48,8 @@ export function EmailPage() {
             <div key={account.id} className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-[#1844A6]" />
+                  <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-[#064A6C]" />
                   </div>
                   <div>
                     <h3 className="text-gray-900 font-medium">{account.email}</h3>
@@ -71,7 +71,7 @@ export function EmailPage() {
                       <p className="text-xs text-gray-500 mb-1">Storage</p>
                       <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#1844A6] rounded-full"
+                          className="h-full bg-[#064A6C] rounded-full"
                           style={{ width: `${Math.min((account.storageUsed / account.storageLimit) * 100, 100)}%` }}
                         />
                       </div>

@@ -95,13 +95,13 @@ export function PricingPage() {
                 <div className="flex flex-col md:flex-row md:items-start gap-8">
                   {/* Category Info */}
                   <div className="md:w-1/3">
-                    <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
-                      <Icon className="w-6 h-6 text-[#1844A6]" />
+                    <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center mb-4">
+                      <Icon className="w-6 h-6 text-[#064A6C]" />
                     </div>
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">{category.title}</h2>
                     <p className="text-gray-500 mb-3">{category.description}</p>
-                    <p className="text-sm text-gray-700 font-medium mb-4">Starting at <span className="text-[#1844A6]">{category.startingAt}</span></p>
-                    <Link to={category.link} className="text-[#1844A6] font-medium text-sm flex items-center gap-1 hover:gap-2 transition-all">
+                    <p className="text-sm text-gray-700 font-medium mb-4">Starting at <span className="text-[#064A6C]">{category.startingAt}</span></p>
+                    <Link to={category.link} className="text-[#064A6C] font-medium text-sm flex items-center gap-1 hover:gap-2 transition-all">
                       {category.linkText} <ArrowRight className="w-4 h-4" />
                     </Link>
                   </div>
@@ -112,12 +112,12 @@ export function PricingPage() {
                       {category.plans.map((plan: any) => (
                         <div
                           key={plan.name}
-                          className={`bg-white border rounded-[7px] p-4 ${plan.popular ? 'border-[#1844A6] shadow-sm' : 'border-gray-200'}`}
+                          className={`bg-white border rounded-[7px] p-4 ${plan.popular ? 'border-[#064A6C] shadow-sm' : 'border-gray-200'}`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="font-medium text-gray-900">{plan.name}</h3>
                             {plan.popular && (
-                              <span className="text-[10px] font-medium bg-blue-50 text-[#1844A6] px-2 py-0.5 rounded-full">Popular</span>
+                              <span className="text-[10px] font-medium bg-teal-50 text-[#064A6C] px-2 py-0.5 rounded-full">Popular</span>
                             )}
                           </div>
                           <p className="text-lg font-bold text-gray-900">{plan.price}</p>
@@ -151,7 +151,7 @@ export function PricingPage() {
             ))}
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register" className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
+            <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
               Create Free Account
             </Link>
             <Link to="/domains/search" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-colors">

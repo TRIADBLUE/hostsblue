@@ -12,7 +12,7 @@ export function DomainsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-[#1844A6] animate-spin" />
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
   }
@@ -37,8 +37,8 @@ export function DomainsPage() {
           {domains.map((domain: any) => (
             <div key={domain.id} className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-[#1844A6]" />
+                <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-[#064A6C]" />
                 </div>
                 <div>
                   <h3 className="text-gray-900 font-medium">{domain.domainName}</h3>

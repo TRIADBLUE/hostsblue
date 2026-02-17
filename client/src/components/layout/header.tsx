@@ -22,19 +22,19 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-8">
-            <Link to="/domains/search" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+            <Link to="/domains/search" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Domains
             </Link>
-            <Link to="/hosting" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+            <Link to="/hosting" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Hosting
             </Link>
-            <Link to="/email" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+            <Link to="/email" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Email
             </Link>
-            <Link to="/security" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+            <Link to="/security" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Security
             </Link>
-            <Link to="/pricing" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+            <Link to="/pricing" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Pricing
             </Link>
           </nav>
@@ -43,7 +43,7 @@ export function Header() {
           <div className="hidden md:flex items-center gap-4">
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="text-gray-600 hover:text-[#1844A6] transition-colors font-medium text-sm">
+                <Link to="/dashboard" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
                   Dashboard
                 </Link>
                 <span className="text-sm text-gray-500">
@@ -58,7 +58,7 @@ export function Header() {
                 <Link to="/login" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm">
                   Login
                 </Link>
-                <Link to="/register" className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-colors inline-flex items-center gap-1">
+                <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-colors inline-flex items-center gap-1">
                   Get Started <span className="ml-0.5">→</span>
                 </Link>
               </>
@@ -74,11 +74,11 @@ export function Header() {
         {/* Mobile Menu */}
         {mobileOpen && (
           <div className="md:hidden border-t border-gray-200 py-4 space-y-2">
-            <Link to="/domains/search" className="block px-4 py-2 text-gray-600 hover:text-[#1844A6] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Domains</Link>
-            <Link to="/hosting" className="block px-4 py-2 text-gray-600 hover:text-[#1844A6] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Hosting</Link>
-            <Link to="/email" className="block px-4 py-2 text-gray-600 hover:text-[#1844A6] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Email</Link>
-            <Link to="/security" className="block px-4 py-2 text-gray-600 hover:text-[#1844A6] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Security</Link>
-            <Link to="/pricing" className="block px-4 py-2 text-gray-600 hover:text-[#1844A6] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Pricing</Link>
+            <Link to="/domains/search" className="block px-4 py-2 text-gray-600 hover:text-[#064A6C] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Domains</Link>
+            <Link to="/hosting" className="block px-4 py-2 text-gray-600 hover:text-[#064A6C] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Hosting</Link>
+            <Link to="/email" className="block px-4 py-2 text-gray-600 hover:text-[#064A6C] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Email</Link>
+            <Link to="/security" className="block px-4 py-2 text-gray-600 hover:text-[#064A6C] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Security</Link>
+            <Link to="/pricing" className="block px-4 py-2 text-gray-600 hover:text-[#064A6C] hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Pricing</Link>
             <hr className="my-2 border-gray-200" />
             {isAuthenticated ? (
               <>
@@ -88,7 +88,7 @@ export function Header() {
             ) : (
               <>
                 <Link to="/login" className="block px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg" onClick={() => setMobileOpen(false)}>Login</Link>
-                <Link to="/register" className="block mx-4 text-center bg-[#1844A6] text-white py-2.5 rounded-[7px] font-medium" onClick={() => setMobileOpen(false)}>Get Started</Link>
+                <Link to="/register" className="block mx-4 text-center bg-[#064A6C] text-white py-2.5 rounded-[7px] font-medium" onClick={() => setMobileOpen(false)}>Get Started</Link>
               </>
             )}
           </div>

@@ -51,7 +51,7 @@ export function ForgotPasswordPage() {
                   setIsSuccess(false);
                   setEmail('');
                 }}
-                className="text-[#1844A6] hover:text-[#133A8A] text-sm font-medium"
+                className="text-[#064A6C] hover:text-[#053C58] text-sm font-medium"
               >
                 Send again with a different email
               </button>
@@ -69,7 +69,7 @@ export function ForgotPasswordPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-[7px] text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
                     placeholder="you@example.com"
                     required
                   />
@@ -79,7 +79,7 @@ export function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-[#1844A6] hover:bg-[#133A8A] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <>
@@ -96,7 +96,7 @@ export function ForgotPasswordPage() {
 
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-6">
-          <Link to="/login" className="text-[#1844A6] hover:text-[#133A8A] font-medium inline-flex items-center gap-1">
+          <Link to="/login" className="text-[#064A6C] hover:text-[#053C58] font-medium inline-flex items-center gap-1">
             <ArrowLeft className="w-4 h-4" /> Back to sign in
           </Link>
         </p>

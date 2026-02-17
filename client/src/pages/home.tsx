@@ -34,12 +34,12 @@ export function HomePage() {
                 value={domainQuery}
                 onChange={(e) => setDomainQuery(e.target.value)}
                 placeholder="Search for your perfect domain..."
-                className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-[7px] text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1844A6] focus:border-transparent"
+                className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-[7px] text-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent"
               />
             </div>
             <button
               type="submit"
-              className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-semibold px-8 py-4 rounded-[7px] text-lg transition-colors whitespace-nowrap"
+              className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-4 rounded-[7px] text-lg transition-colors whitespace-nowrap"
             >
               Search Domains
             </button>
@@ -102,12 +102,12 @@ export function HomePage() {
             },
           ].map(({ icon: Icon, title, desc, link, linkText }) => (
             <div key={title} className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center mb-4">
-                <Icon className="w-6 h-6 text-[#1844A6]" />
+              <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center mb-4">
+                <Icon className="w-6 h-6 text-[#064A6C]" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
               <p className="text-sm text-gray-500 mb-4">{desc}</p>
-              <Link to={link} className="text-[#1844A6] text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all">
+              <Link to={link} className="text-[#064A6C] text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all">
                 {linkText} <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -147,7 +147,7 @@ export function HomePage() {
             },
           ].map(({ step, title, desc }) => (
             <div key={step} className="text-center">
-              <div className="w-14 h-14 bg-[#1844A6] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+              <div className="w-14 h-14 bg-[#064A6C] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                 {step}
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
@@ -199,13 +199,13 @@ export function HomePage() {
             </div>
 
             {/* Pro */}
-            <div className="bg-white border border-[#1844A6] rounded-[7px] p-6 shadow-md relative">
+            <div className="bg-white border border-[#064A6C] rounded-[7px] p-6 shadow-md relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-[#1844A6] text-white text-xs font-medium px-3 py-1 rounded-full">
+                <span className="bg-[#064A6C] text-white text-xs font-medium px-3 py-1 rounded-full">
                   Most Popular
                 </span>
               </div>
-              <h3 className="text-lg font-semibold text-[#1844A6] mb-2">Pro</h3>
+              <h3 className="text-lg font-semibold text-[#064A6C] mb-2">Pro</h3>
               <div className="flex items-baseline gap-1 mb-4">
                 <span className="text-4xl font-bold text-gray-900">$24</span>
                 <span className="text-gray-500">/month</span>
@@ -227,7 +227,7 @@ export function HomePage() {
                   <CheckCircle className="w-4 h-4 text-green-500" /> Staging Environment
                 </li>
               </ul>
-              <Link to="/hosting" className="block text-center py-3 rounded-[7px] font-medium bg-[#1844A6] hover:bg-[#133A8A] text-white transition-colors">
+              <Link to="/hosting" className="block text-center py-3 rounded-[7px] font-medium bg-[#064A6C] hover:bg-[#053C58] text-white transition-colors">
                 Get Started
               </Link>
             </div>
@@ -301,8 +301,8 @@ export function HomePage() {
             },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="text-center">
-              <div className="w-14 h-14 bg-blue-50 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Icon className="w-7 h-7 text-[#1844A6]" />
+              <div className="w-14 h-14 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Icon className="w-7 h-7 text-[#064A6C]" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
               <p className="text-sm text-gray-500">{desc}</p>
@@ -338,7 +338,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register" className="bg-[#1844A6] hover:bg-[#133A8A] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
+            <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
               Create Account
             </Link>
             <Link to="/domains/search" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-colors">
