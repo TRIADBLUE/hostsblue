@@ -19,8 +19,10 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.28.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/jsonwebtoken": "^9.0.6",
+    "bcrypt": "^6.0.0",
     "connect-pg-simple": "^9.0.1",
     "cookie-parser": "^1.4.7",
     "drizzle-orm": "^0.30.0",

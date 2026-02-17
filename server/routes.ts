@@ -11,6 +11,7 @@ import { OrderOrchestrator } from './services/order-orchestration.js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import { ZodError, z } from 'zod';
+import bcrypt from 'bcrypt';
 
 // Validation schemas
 const domainSearchSchema = z.object({
@@ -104,7 +105,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
 
     // Hash password
-    const passwordHash = await Bun.password.hash(password, 'bcrypt');
+    const passwordHash = await bcrypt.hash(password, 10);
 
     // Create customer
     const [customer] = await db.insert(schema.customers).values({
@@ -150,7 +151,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
 
     // Verify password
-    const valid = await Bun.password.verify(password, customer.passwordHash);
+    const valid = await bcrypt.compare(password, customer.passwordHash);
     if (!valid) {
       return res.status(401).json(errorResponse('Invalid credentials', 'INVALID_CREDENTIALS'));
     }
@@ -257,7 +258,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       return res.status(400).json(errorResponse('Invalid or expired reset token'));
     }
 
-    const passwordHash = await Bun.password.hash(password, 'bcrypt');
+    const passwordHash = await bcrypt.hash(password, 10);
     await db.update(schema.customers)
       .set({
         passwordHash,
@@ -321,12 +322,12 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       return res.status(404).json(errorResponse('User not found'));
     }
 
-    const valid = await Bun.password.verify(currentPassword, customer.passwordHash);
+    const valid = await bcrypt.compare(currentPassword, customer.passwordHash);
     if (!valid) {
       return res.status(400).json(errorResponse('Current password is incorrect'));
     }
 
-    const passwordHash = await Bun.password.hash(newPassword, 'bcrypt');
+    const passwordHash = await bcrypt.hash(newPassword, 10);
     await db.update(schema.customers)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(schema.customers.id, customer.id));
