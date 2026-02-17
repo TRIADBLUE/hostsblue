@@ -80,7 +80,15 @@ export function Footer() {
 
         {/* Copyright */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <p>&copy; 2026 HostsBlue. A TriadBlue Company.</p>
+          <p className="flex items-center gap-1">
+            &copy; 2026 HostsBlue. A{' '}
+            <span className="inline-flex items-center gap-0.5 font-medium">
+              <span className="text-gray-600">Triad</span>
+              <img src="/TriadBlue_Logo_Image_Trans.png" alt="" className="h-4 w-auto inline" />
+              <span className="text-[#0000FF]">Blue</span>
+            </span>{' '}
+            Company.
+          </p>
           <p>Secure payments by <span className="text-gray-600 font-medium">swipes</span><span className="text-[#0000FF] font-medium">blue</span></p>
         </div>
       </div>

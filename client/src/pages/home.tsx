@@ -124,34 +124,44 @@ export function HomePage() {
             How It Works
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto">
-            Get your business online in three simple steps.
+            Get your business online in five simple steps.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <div className="grid md:grid-cols-5 gap-6 max-w-6xl mx-auto">
           {[
             {
               step: '1',
-              title: 'Search & Register',
-              desc: 'Find your perfect domain name and register it in seconds with instant activation.',
+              title: 'Search Your Domain',
+              desc: 'Find available domains with our instant search tool.',
             },
             {
               step: '2',
               title: 'Choose Your Services',
-              desc: 'Add hosting, email, SSL, and any other services your business needs.',
+              desc: 'Add hosting, email, SSL, and security to your order.',
             },
             {
               step: '3',
+              title: 'Configure & Customize',
+              desc: 'Set up your preferences and customize your plan.',
+            },
+            {
+              step: '4',
+              title: 'Secure Checkout',
+              desc: 'Pay securely through SwipesBlue payment processing.',
+            },
+            {
+              step: '5',
               title: 'Launch & Grow',
-              desc: 'Go live with your website and email. Manage everything from one simple dashboard.',
+              desc: 'Go live instantly. Manage everything from one dashboard.',
             },
           ].map(({ step, title, desc }) => (
             <div key={step} className="text-center">
-              <div className="w-14 h-14 bg-[#064A6C] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+              <div className="w-12 h-12 bg-[#064A6C] text-white rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4">
                 {step}
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
-              <p className="text-gray-500">{desc}</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+              <p className="text-sm text-gray-500">{desc}</p>
             </div>
           ))}
         </div>
@@ -176,7 +186,7 @@ export function HomePage() {
             <div className="bg-white border border-gray-200 rounded-[7px] p-6">
               <h3 className="text-lg font-semibold text-gray-700 mb-2">Starter</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-bold text-gray-900">$9</span>
+                <span className="text-4xl font-bold text-gray-900">$9.99</span>
                 <span className="text-gray-500">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
@@ -198,16 +208,16 @@ export function HomePage() {
               </Link>
             </div>
 
-            {/* Pro */}
+            {/* Growth */}
             <div className="bg-white border border-[#064A6C] rounded-[7px] p-6 shadow-md relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                 <span className="bg-[#064A6C] text-white text-xs font-medium px-3 py-1 rounded-full">
                   Most Popular
                 </span>
               </div>
-              <h3 className="text-lg font-semibold text-[#064A6C] mb-2">Pro</h3>
+              <h3 className="text-lg font-semibold text-[#064A6C] mb-2">Growth</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-bold text-gray-900">$24</span>
+                <span className="text-4xl font-bold text-gray-900">$24.99</span>
                 <span className="text-gray-500">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
@@ -236,7 +246,7 @@ export function HomePage() {
             <div className="bg-white border border-gray-200 rounded-[7px] p-6">
               <h3 className="text-lg font-semibold text-gray-700 mb-2">Business</h3>
               <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-bold text-gray-900">$59</span>
+                <span className="text-4xl font-bold text-gray-900">$49.99</span>
                 <span className="text-gray-500">/month</span>
               </div>
               <ul className="space-y-3 mb-6">
@@ -325,16 +335,16 @@ export function HomePage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-8 mb-8">
             <div className="text-xl font-bold">
-              <span className="text-gray-900">hosts</span><span className="text-[#0000FF]">blue</span>
+              <span className="text-[#008060]">hosts</span><span className="text-[#0000FF]">blue</span>
             </div>
             <div className="text-xl font-bold">
-              <span className="text-gray-900">swipes</span><span className="text-[#0000FF]">blue</span>
+              <span className="text-[#374151]">swipes</span><span className="text-[#0000FF]">blue</span>
             </div>
             <div className="text-xl font-bold">
-              <span className="text-gray-900">ranks</span><span className="text-[#0000FF]">blue</span>
+              <span className="text-[#FF6B00]">business</span><span className="text-[#0000FF]">blueprint</span>
             </div>
             <div className="text-xl font-bold">
-              <span className="text-gray-900">links</span><span className="text-[#0000FF]">blue</span>
+              <span className="text-[#A00028]">scans</span><span className="text-[#0000FF]">blue</span>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

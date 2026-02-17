@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, CreditCard, BarChart3, LinkIcon, ArrowRight } from 'lucide-react';
+import { Globe, CreditCard, Briefcase, ScanLine, ArrowRight } from 'lucide-react';
 
 export function AboutPage() {
   return (
@@ -83,36 +83,40 @@ export function AboutPage() {
           {[
             {
               icon: Globe,
-              name: 'hostsblue',
+              first: 'hosts', firstColor: '#008060',
+              second: 'blue', secondColor: '#0000FF',
               tagline: 'Domains, hosting, email, and security',
               active: true,
             },
             {
               icon: CreditCard,
-              name: 'swipesblue',
+              first: 'swipes', firstColor: '#374151',
+              second: 'blue', secondColor: '#0000FF',
               tagline: 'Payment processing and invoicing',
               active: false,
             },
             {
-              icon: BarChart3,
-              name: 'ranksblue',
-              tagline: 'SEO tools and analytics',
+              icon: Briefcase,
+              first: 'business', firstColor: '#FF6B00',
+              second: 'blueprint', secondColor: '#0000FF',
+              tagline: 'Business planning and strategy tools',
               active: false,
             },
             {
-              icon: LinkIcon,
-              name: 'linksblue',
-              tagline: 'Link management and shortening',
+              icon: ScanLine,
+              first: 'scans', firstColor: '#A00028',
+              second: 'blue', secondColor: '#0000FF',
+              tagline: 'Document scanning and management',
               active: false,
             },
-          ].map(({ icon: Icon, name, tagline, active }) => (
-            <div key={name} className={`bg-white border rounded-[7px] p-6 text-center ${active ? 'border-[#064A6C] shadow-sm' : 'border-gray-200'}`}>
+          ].map(({ icon: Icon, first, firstColor, second, secondColor, tagline, active }) => (
+            <div key={first + second} className={`bg-white border rounded-[7px] p-6 text-center ${active ? 'border-[#064A6C] shadow-sm' : 'border-gray-200'}`}>
               <div className="w-12 h-12 bg-teal-50 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Icon className="w-6 h-6 text-[#064A6C]" />
               </div>
               <p className="text-lg font-bold mb-1">
-                <span className="text-gray-900">{name.replace('blue', '')}</span>
-                <span className="text-[#0000FF]">blue</span>
+                <span style={{ color: firstColor }}>{first}</span>
+                <span style={{ color: secondColor }}>{second}</span>
               </p>
               <p className="text-sm text-gray-500">{tagline}</p>
               {active && (

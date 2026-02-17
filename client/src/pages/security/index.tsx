@@ -2,10 +2,11 @@ import { Shield, Lock, CheckCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const sslTypes = [
-  { name: 'Domain Validated (DV)', price: 'Free', desc: 'Basic encryption for personal sites', features: ['Domain validation', 'Quick issuance', '256-bit encryption'] },
-  { name: 'Organization Validated (OV)', price: '$49.99/yr', desc: 'Business identity verification', features: ['Organization validation', 'Company name in cert', 'Higher trust level'], popular: true },
-  { name: 'Extended Validation (EV)', price: '$149.99/yr', desc: 'Highest level of trust', features: ['Extended validation', 'Green bar display', 'Maximum trust'] },
-  { name: 'Wildcard SSL', price: '$99.99/yr', desc: 'Protect unlimited subdomains', features: ['Unlimited subdomains', 'Single certificate', 'Easy management'] },
+  { name: 'Domain Validated (DV)', price: '$49.99/yr', desc: 'Basic encryption for small sites', features: ['Domain validation', 'Quick issuance', '256-bit encryption'] },
+  { name: 'Organization Validated (OV)', price: '$149.99/yr', desc: 'Business identity verification', features: ['Organization validation', 'Company name in cert', 'Higher trust level'], popular: true },
+  { name: 'Extended Validation (EV)', price: '$299.99/yr', desc: 'Highest level of trust', features: ['Extended validation', 'Green bar display', 'Maximum trust'] },
+  { name: 'Wildcard SSL', price: '$199.99/yr', desc: 'Protect unlimited subdomains', features: ['Unlimited subdomains', 'Single certificate', 'Easy management'] },
+  { name: 'SAN Certificate', price: '$249.99/yr', desc: 'Protect multiple domains with one cert', features: ['Multiple domains', 'Single certificate', 'Cost effective'] },
 ];
 
 const sitelockPlans = [
@@ -24,7 +25,7 @@ export function SecurityPage() {
           <p className="text-gray-500 max-w-2xl mx-auto">Protect your website and customers with SSL certificates and malware scanning.</p>
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">SSL Certificates</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6">
           {sslTypes.map((ssl) => (
             <div key={ssl.name} className={`bg-white border rounded-[7px] p-6 ${ssl.popular ? 'border-[#064A6C] shadow-md' : 'border-gray-200'}`}>
               <Lock className="w-8 h-8 text-[#064A6C] mb-4" />
