@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, CreditCard, Briefcase, ScanLine, ArrowRight } from 'lucide-react';
+import { Globe, CreditCard, Briefcase, ScanLine } from 'lucide-react';
 
 export function AboutPage() {
   return (
@@ -136,11 +136,11 @@ export function AboutPage() {
           Join thousands of businesses that trust HostsBlue for their web presence.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
+          <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-all btn-arrow-hover justify-center">
             Create Account
           </Link>
-          <Link to="/pricing" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-colors flex items-center justify-center gap-2">
-            View Pricing <ArrowRight className="w-4 h-4" />
+          <Link to="/pricing" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-all btn-arrow-hover justify-center">
+            View Pricing
           </Link>
         </div>
       </section>

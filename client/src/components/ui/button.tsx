@@ -11,7 +11,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', size = 'md', loading, arrowHover, children, className = '', disabled, ...props }, ref) => {
-    const base = 'inline-flex items-center justify-center font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+    const base = 'inline-flex items-center justify-center font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed group';
     const sizes = {
       sm: 'px-3 py-1.5 text-sm',
       md: 'px-6 py-3',
@@ -34,7 +34,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {loading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
         {children}
-        {arrowHover && <span className="ml-1 transition-transform duration-200 group-hover:translate-x-1">→</span>}
+        {arrowHover && (
+          <span className="inline-block overflow-hidden w-0 group-hover:w-5 transition-all duration-200">
+            <span className="inline-block translate-x-[-8px] opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200 ml-1">&rarr;</span>
+          </span>
+        )}
       </button>
     );
   }

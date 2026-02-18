@@ -40,20 +40,22 @@
 
 @layer components {
   .logo-hosts {
-    font-family: 'Archivo', sans-serif;
-    font-weight: 600;
-    font-stretch: semi-expanded;
+    font-family: 'Archivo Semi Expanded', 'Archivo', sans-serif;
+    font-weight: 800;
     color: #008060;
+    text-shadow: 1px 1px 0px #000;
   }
   .logo-blue {
-    font-family: 'Archivo', sans-serif;
-    font-weight: 400;
+    font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+    font-weight: 800;
     color: #0000FF;
+    text-shadow: 1px 1px 0px #000;
   }
   .logo-com {
-    font-family: 'Archivo', sans-serif;
-    font-weight: 400;
+    font-family: 'Archivo Narrow', 'Archivo', sans-serif;
+    font-weight: 800;
     color: #008060;
+    text-shadow: 1px 1px 0px #000;
   }
 
   .btn-primary {
@@ -85,15 +87,19 @@
   }
 
   .btn-arrow-hover {
-    @apply inline-flex items-center gap-1;
+    @apply inline-flex items-center;
   }
   .btn-arrow-hover::after {
     content: '\2192';
-    @apply transition-transform duration-200;
-    transform: translateX(0);
+    @apply transition-all duration-200;
+    opacity: 0;
+    transform: translateX(-8px);
+    margin-left: 0;
   }
   .btn-arrow-hover:hover::after {
-    transform: translateX(4px);
+    opacity: 1;
+    transform: translateX(0);
+    margin-left: 8px;
   }
 
   .card {

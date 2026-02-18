@@ -1,5 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
-import { CheckCircle, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 export function CheckoutSuccessPage() {
   const [searchParams] = useSearchParams();
@@ -28,17 +28,15 @@ export function CheckoutSuccessPage() {
         <div className="space-y-3">
           <Link
             to="/dashboard"
-            className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-[#064A6C] hover:bg-[#053C58] text-white font-medium py-3 rounded-[7px] transition-all btn-arrow-hover justify-center"
           >
-            <LayoutDashboard className="w-4 h-4" />
             Go to Dashboard
           </Link>
           <Link
             to="/dashboard/orders"
-            className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-3 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+            className="w-full border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-3 rounded-[7px] transition-all btn-arrow-hover justify-center"
           >
             View Order Details
-            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </div>

@@ -105,8 +105,8 @@ export function DashboardPage() {
             <h3 className="text-lg font-semibold text-gray-900">SSL Certificates</h3>
           </div>
           <p className="text-gray-500 text-sm">Manage your SSL certificates and security</p>
-          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
-            View SSL <ArrowRight className="w-3 h-3" />
+          <span className="text-[#064A6C] text-sm mt-3 btn-arrow-hover">
+            View SSL
           </span>
         </Link>
 
@@ -118,8 +118,8 @@ export function DashboardPage() {
             <h3 className="text-lg font-semibold text-gray-900">SiteLock</h3>
           </div>
           <p className="text-gray-500 text-sm">Website security scanning and malware protection</p>
-          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
-            View SiteLock <ArrowRight className="w-3 h-3" />
+          <span className="text-[#064A6C] text-sm mt-3 btn-arrow-hover">
+            View SiteLock
           </span>
         </Link>
 
@@ -131,8 +131,8 @@ export function DashboardPage() {
             <h3 className="text-lg font-semibold text-gray-900">Website Builder</h3>
           </div>
           <p className="text-gray-500 text-sm">Build and manage your website projects</p>
-          <span className="text-[#064A6C] text-sm mt-3 inline-flex items-center gap-1 group-hover:underline">
-            View Projects <ArrowRight className="w-3 h-3" />
+          <span className="text-[#064A6C] text-sm mt-3 btn-arrow-hover">
+            View Projects
           </span>
         </Link>
       </div>
@@ -147,7 +147,7 @@ export function DashboardPage() {
           >
             <Globe className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Search Domains</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
+            <ArrowRight className="w-4 h-4 text-gray-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#064A6C] transition-all duration-200" />
           </Link>
           <Link
             to="/hosting"
@@ -155,7 +155,7 @@ export function DashboardPage() {
           >
             <Server className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">View Hosting Plans</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
+            <ArrowRight className="w-4 h-4 text-gray-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#064A6C] transition-all duration-200" />
           </Link>
           <Link
             to="/dashboard/domains"
@@ -163,7 +163,7 @@ export function DashboardPage() {
           >
             <Globe className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Manage Domains</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
+            <ArrowRight className="w-4 h-4 text-gray-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#064A6C] transition-all duration-200" />
           </Link>
           <Link
             to="/dashboard/hosting"
@@ -171,7 +171,7 @@ export function DashboardPage() {
           >
             <Server className="w-5 h-5 text-[#064A6C]" />
             <span className="text-gray-900 flex-1">Manage Hosting</span>
-            <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-gray-900 transition-colors" />
+            <ArrowRight className="w-4 h-4 text-gray-400 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-hover:text-[#064A6C] transition-all duration-200" />
           </Link>
         </div>
       </div>

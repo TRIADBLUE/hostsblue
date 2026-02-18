@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, Server, Mail, Shield, Lock, CheckCircle, ArrowRight } from 'lucide-react';
+import { Globe, Server, Mail, Shield, Lock, CheckCircle } from 'lucide-react';
 
 const serviceCategories = [
   {
@@ -102,8 +102,8 @@ export function PricingPage() {
                     <h2 className="text-2xl font-bold text-gray-900 mb-2">{category.title}</h2>
                     <p className="text-gray-500 mb-3">{category.description}</p>
                     <p className="text-sm text-gray-700 font-medium mb-4">Starting at <span className="text-[#064A6C]">{category.startingAt}</span></p>
-                    <Link to={category.link} className="text-[#064A6C] font-medium text-sm flex items-center gap-1 hover:gap-2 transition-all">
-                      {category.linkText} <ArrowRight className="w-4 h-4" />
+                    <Link to={category.link} className="text-[#064A6C] font-medium text-sm btn-arrow-hover">
+                      {category.linkText}
                     </Link>
                   </div>
 
@@ -152,7 +152,7 @@ export function PricingPage() {
             ))}
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors">
+            <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-all btn-arrow-hover justify-center">
               Create Free Account
             </Link>
             <Link to="/domains/search" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-gray-50 transition-colors">

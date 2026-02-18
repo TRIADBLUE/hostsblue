@@ -280,10 +280,9 @@ export function DomainSearchPage() {
         </div>
         <a
           href="/register"
-          className="inline-flex items-center gap-2 bg-[#064A6C] hover:bg-[#053C58] text-white font-medium px-6 py-3 rounded-[7px] transition-colors"
+          className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium px-6 py-3 rounded-[7px] transition-all btn-arrow-hover"
         >
           Start Transfer
-          <ArrowRight className="w-4 h-4" />
         </a>
       </section>
 

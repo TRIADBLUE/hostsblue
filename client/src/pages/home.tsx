@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Globe, Server, Mail, Shield, Palette, ArrowRight, Search, Zap, Headphones, Clock, Check } from 'lucide-react';
+import { Globe, Server, Mail, Shield, Palette, Search, Zap, Headphones, Clock, Check } from 'lucide-react';
 
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null);
@@ -122,10 +122,9 @@ export function HomePage() {
               </div>
               <button
                 type="submit"
-                className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-4 rounded-[7px] text-base transition-colors whitespace-nowrap inline-flex items-center justify-center gap-2 group"
+                className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-4 rounded-[7px] text-base transition-all whitespace-nowrap btn-arrow-hover"
               >
                 Search
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
             </form>
           </Section>
@@ -161,8 +160,8 @@ export function HomePage() {
                 <Icon className="w-5 h-5 text-[#064A6C] mb-4" />
                 <h3 className="text-base font-semibold text-gray-900 mb-1.5">{title}</h3>
                 <p className="text-sm text-gray-500 mb-4 leading-relaxed">{desc}</p>
-                <Link to={link} className="text-[#064A6C] text-sm font-medium inline-flex items-center gap-1 hover:gap-2 transition-all">
-                  {linkText} <ArrowRight className="w-3.5 h-3.5" />
+                <Link to={link} className="text-[#064A6C] text-sm font-medium btn-arrow-hover">
+                  {linkText}
                 </Link>
               </div>
             </Section>
@@ -283,8 +282,8 @@ export function HomePage() {
 
           <Section delay={0.3}>
             <div className="text-center mt-10">
-              <Link to="/hosting" className="text-[#064A6C] font-medium text-sm inline-flex items-center gap-1 hover:gap-2 transition-all">
-                View all plans & compare <ArrowRight className="w-4 h-4" />
+              <Link to="/hosting" className="text-[#064A6C] font-medium text-sm btn-arrow-hover">
+                View all plans & compare
               </Link>
             </div>
           </Section>
@@ -338,8 +337,8 @@ export function HomePage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-colors inline-flex items-center justify-center gap-2 group">
-                Create Account <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-semibold px-8 py-3 rounded-[7px] transition-all btn-arrow-hover justify-center">
+                Create Account
               </Link>
               <Link to="/domains/search" className="border border-gray-300 text-gray-700 font-semibold px-8 py-3 rounded-[7px] hover:bg-white hover:border-[#064A6C] hover:text-[#064A6C] transition-colors">
                 Search Domains

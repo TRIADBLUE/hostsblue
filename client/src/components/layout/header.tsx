@@ -10,18 +10,23 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/HostsBlue_Logo_Image.png" alt="" className="h-8 w-auto" />
+          <Link to="/" className="flex items-center gap-2 mr-auto">
+            <img
+              src="/HostsBlue_Logo_Image.png"
+              alt=""
+              className="h-8 w-auto"
+              style={{ filter: 'drop-shadow(1px 1px 0px #000)' }}
+            />
             <span className="text-2xl leading-none">
-              <span style={{ fontFamily: '"Archivo Semi Expanded", sans-serif', fontWeight: 700 }} className="text-[#008060]">hosts</span>
-              <span style={{ fontFamily: '"Archivo Narrow", sans-serif', fontWeight: 700 }} className="text-[#0000FF]">blue</span>
+              <span className="logo-hosts">hosts</span>
+              <span className="logo-blue">blue</span>
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          {/* Desktop: Nav + Auth — all inline, right-aligned */}
+          <div className="hidden md:flex items-center gap-6">
             <Link to="/domains/search" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Domains
             </Link>
@@ -37,10 +42,9 @@ export function Header() {
             <Link to="/pricing" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
               Pricing
             </Link>
-          </nav>
 
-          {/* Auth Area */}
-          <div className="hidden md:flex items-center gap-4">
+            <div className="w-px h-5 bg-gray-200" />
+
             {isAuthenticated ? (
               <>
                 <Link to="/dashboard" className="text-gray-600 hover:text-[#064A6C] transition-colors font-medium text-sm">
@@ -58,8 +62,8 @@ export function Header() {
                 <Link to="/login" className="text-gray-600 hover:text-gray-900 transition-colors font-medium text-sm">
                   Login
                 </Link>
-                <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-colors inline-flex items-center gap-1">
-                  Get Started <span className="ml-0.5">→</span>
+                <Link to="/register" className="bg-[#064A6C] hover:bg-[#053C58] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-all inline-flex items-center btn-arrow-hover">
+                  Get Started
                 </Link>
               </>
             )}
