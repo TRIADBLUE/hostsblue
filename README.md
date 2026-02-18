@@ -1,6 +1,6 @@
 # HostsBlue
 
-A white-label domain registration and WordPress hosting platform.
+A Domain registration and WordPress hosting platform.
 
 ## Overview
 
