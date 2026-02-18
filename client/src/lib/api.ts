@@ -18,18 +18,19 @@ class ApiError extends Error {
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
-async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function fetchApi<T>(endpoint: string, options: RequestInit & { skipAuthRedirect?: boolean } = {}): Promise<T> {
   const url = `${API_URL}/api/v1${endpoint}`;
+  const { skipAuthRedirect, ...fetchOptions } = options;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   };
 
-  const response = await fetch(url, { ...options, headers, credentials: 'include' });
+  const response = await fetch(url, { ...fetchOptions, headers, credentials: 'include' });
   const data = await response.json();
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && !skipAuthRedirect) {
       if (!isRefreshing) {
         isRefreshing = true;
         refreshPromise = refreshToken();
@@ -38,7 +39,6 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
       isRefreshing = false;
       refreshPromise = null;
       if (refreshed) return fetchApi(endpoint, options);
-      window.location.href = '/login';
     }
     throw new ApiError(data.error || 'An error occurred', response.status, data.code);
   }
@@ -64,7 +64,7 @@ export const authApi = {
   register: (data: { email: string; password: string; firstName: string; lastName: string }) =>
     fetchApi<{ customer: any }>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   logout: () => fetchApi<void>('/auth/logout', { method: 'POST' }),
-  me: () => fetchApi<any>('/auth/me'),
+  me: () => fetchApi<any>('/auth/me', { skipAuthRedirect: true }),
   forgotPassword: (email: string) =>
     fetchApi<void>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) =>
