@@ -38,14 +38,11 @@ export function Header() {
     <header className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB]" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16">
-          {/* Logo */}
+          {/* Logo — left side only */}
           <Brandsignature brand="hostsblue" showTld={false} size={24} linkTo="/" />
 
-          {/* Spacer pushes everything right */}
-          <div className="flex-1" />
-
-          {/* Desktop Nav + Auth (all right-aligned) */}
-          <nav className="hidden lg:flex items-center gap-1">
+          {/* Desktop Nav + Auth — right-aligned */}
+          <nav className="hidden lg:flex items-center gap-1 ml-auto">
             {navItems.map(({ key, label }) => (
               <div
                 key={key}
