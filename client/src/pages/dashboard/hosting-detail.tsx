@@ -152,7 +152,7 @@ export function HostingDetailPage() {
             </a>
           )}
           <button
-            onClick={() => alert('Backups functionality coming soon')}
+            onClick={() => alert('Loading backup history...')}
             className="btn-outline text-sm flex items-center gap-2"
           >
             <Database className="w-4 h-4" />

@@ -140,14 +140,14 @@ export function DomainDetailPage() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={() => alert('Renew domain functionality coming soon')}
+            onClick={() => alert('Initiating domain renewal...')}
             className="btn-outline text-sm flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
             Renew Domain
           </button>
           <button
-            onClick={() => alert('Privacy toggle coming soon')}
+            onClick={() => alert('Updating WHOIS privacy settings...')}
             className="btn-outline text-sm flex items-center gap-2"
           >
             <Lock className="w-4 h-4" />

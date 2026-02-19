@@ -41,10 +41,10 @@ export function DashboardLayout() {
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <Link to="/" className="flex items-end gap-2">
-            <img src="/HostsBlue_Logo_Image.png?v=2" alt="hostsblue" className="h-8 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-            <span className="text-xl leading-none">
-              <span className="logo-hosts">hosts</span>
-              <span className="logo-blue">blue</span>
+            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-7 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
+            <span className="text-[20px] leading-none">
+              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
+              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
             </span>
           </Link>
         </div>
@@ -117,10 +117,10 @@ export function DashboardLayout() {
         <header className="lg:hidden bg-white border-b border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-end gap-2">
-              <img src="/HostsBlue_Logo_Image.png?v=2" alt="hostsblue" className="h-7 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
+              <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-6 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
               <span className="text-lg leading-none">
-                <span className="logo-hosts">hosts</span>
-                <span className="logo-blue">blue</span>
+                <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
+                <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
               </span>
             </Link>
           </div>

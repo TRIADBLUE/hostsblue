@@ -39,10 +39,10 @@ export function Header() {
         <div className="flex items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-end gap-2 mr-8">
-            <img src="/HostsBlue_Logo_Image.png?v=2" alt="hostsblue" className="h-10 w-auto -mb-1.5" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-            <span className="text-2xl leading-none flex items-center">
-              <span className="logo-hosts">hosts</span>
-              <span className="logo-blue">blue</span>
+            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-10 w-auto -mb-1.5" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
+            <span className="text-[24px] leading-none flex items-center">
+              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
+              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
             </span>
           </Link>
 

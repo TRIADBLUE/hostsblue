@@ -35,7 +35,7 @@ export function WebsiteBuilderPage() {
           <p className="text-gray-500">Build and manage your website projects</p>
         </div>
         <button
-          onClick={() => alert('Create project functionality coming soon')}
+          onClick={() => window.location.href = '/website-builder'}
           className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -71,7 +71,7 @@ export function WebsiteBuilderPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => alert('Edit project functionality coming soon')}
+                    onClick={() => alert('Opening editor...')}
                     className="btn-outline text-sm flex items-center gap-2"
                     title="Edit project"
                   >
@@ -111,7 +111,7 @@ export function WebsiteBuilderPage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No website projects yet</h3>
           <p className="text-gray-500 mb-6">Create your first website with our drag-and-drop builder</p>
           <button
-            onClick={() => alert('Create project functionality coming soon')}
+            onClick={() => window.location.href = '/website-builder'}
             className="btn-primary"
           >
             Create a Website

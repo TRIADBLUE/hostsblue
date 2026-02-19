@@ -33,16 +33,20 @@ import { AboutPage } from '@/pages/about/index';
 import { SupportPage as PublicSupportPage } from '@/pages/support/index';
 import { ForgotPasswordPage } from '@/pages/auth/forgot-password';
 
-// Admin Pages
-import { AdminLoginPage } from '@/pages/admin/login';
-import { AdminLayout } from '@/pages/admin/layout';
-import { AdminOverviewPage } from '@/pages/admin/overview';
-import { AdminCustomersPage } from '@/pages/admin/customers';
-import { AdminOrdersPage } from '@/pages/admin/orders';
-import { AdminDomainsPage } from '@/pages/admin/domains';
-import { AdminHostingPage } from '@/pages/admin/hosting';
-import { AdminSupportPage } from '@/pages/admin/support';
-import { AdminSettingsPage } from '@/pages/admin/settings';
+// Panel Pages (Admin)
+import { PanelLoginPage } from '@/pages/panel/login';
+import { PanelLayout } from '@/pages/panel/layout';
+import { PanelOverviewPage } from '@/pages/panel/overview';
+import { PanelCustomersPage } from '@/pages/panel/customers';
+import { PanelOrdersPage } from '@/pages/panel/orders';
+import { PanelDomainsPage } from '@/pages/panel/domains';
+import { PanelHostingPage } from '@/pages/panel/hosting';
+import { PanelEmailPage } from '@/pages/panel/email';
+import { PanelSslPage } from '@/pages/panel/ssl';
+import { PanelBuilderPage } from '@/pages/panel/builder';
+import { PanelSupportPage } from '@/pages/panel/support';
+import { PanelRevenuePage } from '@/pages/panel/revenue';
+import { PanelSettingsPage } from '@/pages/panel/settings';
 
 export const router = createBrowserRouter([
   {
@@ -90,20 +94,24 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/admin/login',
-    element: <AdminLoginPage />,
+    path: '/panel/login',
+    element: <PanelLoginPage />,
   },
   {
-    path: '/admin',
-    element: <AdminLayout />,
+    path: '/panel',
+    element: <PanelLayout />,
     children: [
-      { index: true, element: <AdminOverviewPage /> },
-      { path: 'customers', element: <AdminCustomersPage /> },
-      { path: 'orders', element: <AdminOrdersPage /> },
-      { path: 'domains', element: <AdminDomainsPage /> },
-      { path: 'hosting', element: <AdminHostingPage /> },
-      { path: 'support', element: <AdminSupportPage /> },
-      { path: 'settings', element: <AdminSettingsPage /> },
+      { index: true, element: <PanelOverviewPage /> },
+      { path: 'customers', element: <PanelCustomersPage /> },
+      { path: 'orders', element: <PanelOrdersPage /> },
+      { path: 'domains', element: <PanelDomainsPage /> },
+      { path: 'hosting', element: <PanelHostingPage /> },
+      { path: 'email', element: <PanelEmailPage /> },
+      { path: 'ssl', element: <PanelSslPage /> },
+      { path: 'builder', element: <PanelBuilderPage /> },
+      { path: 'support', element: <PanelSupportPage /> },
+      { path: 'revenue', element: <PanelRevenuePage /> },
+      { path: 'settings', element: <PanelSettingsPage /> },
     ],
   },
   {

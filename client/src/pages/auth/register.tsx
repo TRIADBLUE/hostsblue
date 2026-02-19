@@ -38,10 +38,11 @@ export function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-block mb-6">
-            <span className="text-3xl">
-              <span className="logo-hosts">hosts</span>
-              <span className="logo-blue">blue</span>
+          <Link to="/" className="inline-flex items-end gap-2 mb-6">
+            <img src="/HostsBlue_Logo_Image_Trans.png" alt="" className="h-8 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
+            <span className="text-3xl leading-none">
+              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
+              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
             </span>
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Create your account</h1>

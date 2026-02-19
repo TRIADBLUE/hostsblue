@@ -78,12 +78,14 @@ export function AboutPage() {
 
       <hr className="section-divider" />
 
-      {/* TriadBlue Ecosystem */}
+      {/* TRIADBLUE Ecosystem */}
       <section className="py-12">
         <div className="text-center mb-12">
-          <h2 className="text-2xl font-[800] text-gray-900 mb-4">The TRIADBLUE Ecosystem</h2>
+          <h2 className="text-2xl font-[800] text-gray-900 mb-4">
+            The <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> Ecosystem
+          </h2>
           <p className="text-[#4B5563] max-w-2xl mx-auto">
-            HostsBlue is part of the TRIADBLUE family of platforms, each designed to solve a specific business challenge while working seamlessly together.
+            <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span><span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span> is part of the <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> family of platforms, each designed to solve a specific business challenge while working seamlessly together.
           </p>
         </div>
 

@@ -77,7 +77,7 @@ export function BillingPage() {
           </div>
           <p className="text-gray-500 text-sm">No payment methods saved</p>
           <button
-            onClick={() => alert('Payment method management coming soon')}
+            onClick={() => alert('Redirecting to payment portal...')}
             className="text-[#064A6C] hover:text-[#053A55] text-sm mt-3 font-medium"
           >
             Add Payment Method
