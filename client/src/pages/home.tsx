@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Globe, Server, Mail, Shield, Sparkles, Zap, Headphones, Clock, Check, Search, Package, CreditCard, Rocket } from 'lucide-react';
 import { DomainSearch } from '@/components/domain-search';
 import { AIBuilder } from '@/components/ai-builder';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 /* ------------------------------------------------------------------ */
 /*  Scroll-reveal hook + animated Section wrapper                      */
@@ -59,7 +60,7 @@ const milestones = [
   { icon: Search, title: 'Search', desc: 'Find your perfect domain in seconds' },
   { icon: Package, title: 'Bundle', desc: 'Add hosting, email, and security — everything you need' },
   { icon: Sparkles, title: 'Build', desc: 'Let AI design your site or build it yourself' },
-  { icon: CreditCard, title: 'Checkout', desc: '__checkout__' },
+  { icon: CreditCard, title: 'Checkout', desc: '__swipesblue__' },
   { icon: Rocket, title: 'Launch', desc: 'Go live instantly. Grow from your dashboard.' },
 ];
 
@@ -70,12 +71,7 @@ const trustSignals = [
   { icon: Clock, title: 'Instant Activation', desc: 'Domains and hosting activated instantly after purchase.' },
 ];
 
-const ecosystemBrands = [
-  { first: 'hosts', firstColor: '#008060', second: 'blue', secondColor: '#0000FF', tld: '.com', tldColor: '#008060', icon: '/HostsBlue_Logo_Image_Trans.png', href: 'https://hostsblue.com' },
-  { first: 'swipes', firstColor: '#374151', second: 'blue', secondColor: '#0000FF', tld: '.com', tldColor: '#374151', icon: '/swipesblue_favicon_wbg.png', href: 'https://swipesblue.com' },
-  { first: 'business', firstColor: '#FF6B00', second: 'blueprint', secondColor: '#0000FF', tld: '.io', tldColor: '#FF6B00', icon: '/businessblueprint_icon.png', href: 'https://businessblueprint.io' },
-  { first: 'scans', firstColor: '#A00028', second: 'blue', secondColor: '#0000FF', tld: '', tldColor: '', icon: '/scansblue_favicon.png', href: '#' },
-];
+const ecosystemBrandKeys = ['hostsblue', 'swipesblue', 'businessblueprint', 'scansblue', 'triadblue'] as const;
 
 /* ------------------------------------------------------------------ */
 /*  How It Works — animated milestones                                 */
@@ -167,11 +163,9 @@ function HowItWorks() {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-[#09080E] mb-1">{title}</h3>
-              {desc === '__checkout__' ? (
+              {desc === '__swipesblue__' ? (
                 <p className="text-xs text-gray-500 leading-relaxed">
-                  Pay securely through{' '}
-                  <span style={{ fontWeight: 700, color: '#374151' }}>swipes</span>
-                  <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
+                  Pay securely through <Brandsignature brand="swipesblue" size={12} />
                 </p>
               ) : (
                 <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
@@ -406,19 +400,14 @@ export function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <Section>
           <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-[7px] px-8 py-14 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#4B5563] mb-3">PART OF THE <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> ECOSYSTEM</p>
-            <h2 className="text-xl font-[700] mb-10" style={{ color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#4B5563] mb-3">PART OF THE <Brandsignature brand="triadblue" showTld={false} size={12} /> ECOSYSTEM</p>
+            <div className="mb-10">
+              <Brandsignature brand="triadblue" showTld={true} size={20} />
+            </div>
 
             <div className="flex flex-wrap items-center justify-center gap-8 mb-10">
-              {ecosystemBrands.map(({ first, firstColor, second, secondColor, tld, tldColor, icon, href }) => (
-                <a key={first + second} href={href} target={href !== '#' ? '_blank' : undefined} rel={href !== '#' ? 'noopener noreferrer' : undefined} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                  <img src={icon} alt="" className="h-5 w-auto" />
-                  <span>
-                    <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: firstColor }}>{first}</span>
-                    <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: secondColor }}>{second}</span>
-                    {tld && <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: tldColor }}>{tld}</span>}
-                  </span>
-                </a>
+              {ecosystemBrandKeys.map((key) => (
+                <Brandsignature key={key} brand={key} size={16} />
               ))}
             </div>
 

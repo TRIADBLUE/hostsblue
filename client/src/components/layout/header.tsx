@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { Menu, X, ChevronDown, Search, Globe, Server, Mail, Shield, Sparkles, Check } from 'lucide-react';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 type MenuKey = 'domains' | 'hosting' | 'email' | 'security' | 'builder' | null;
 
@@ -38,16 +39,13 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-end gap-2 mr-8">
-            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-10 w-auto -mb-1.5" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-            <span className="text-[24px] leading-none flex items-center">
-              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-            </span>
-          </Link>
+          <Brandsignature brand="hostsblue" showTld={false} size={24} linkTo="/" />
 
-          {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1">
+          {/* Spacer pushes everything right */}
+          <div className="flex-1" />
+
+          {/* Desktop Nav + Auth (all right-aligned) */}
+          <nav className="hidden lg:flex items-center gap-1">
             {navItems.map(({ key, label }) => (
               <div
                 key={key}
@@ -64,25 +62,26 @@ export function Header() {
             <Link to="/pricing" className="px-3 py-2 text-sm font-medium text-[#4B5563] hover:text-[#09080E] transition-colors">
               Pricing
             </Link>
-          </nav>
 
-          {/* Desktop Auth */}
-          <div className="hidden lg:flex items-center gap-4">
+            {/* Thin separator */}
+            <div className="w-px h-6 bg-[#E5E7EB] mx-2" />
+
+            {/* Auth */}
             {isAuthenticated ? (
               <>
-                <Link to="/dashboard" className="text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors">Dashboard</Link>
-                <span className="text-sm text-[#4B5563]">{customer?.firstName || customer?.email}</span>
-                <button onClick={logout} className="text-sm text-[#4B5563] hover:text-[#DC2626] transition-colors">Sign Out</button>
+                <Link to="/dashboard" className="text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors px-2">Dashboard</Link>
+                <span className="text-sm text-[#4B5563] px-2">{customer?.firstName || customer?.email}</span>
+                <button onClick={logout} className="text-sm text-[#4B5563] hover:text-[#DC2626] transition-colors px-2">Sign Out</button>
               </>
             ) : (
               <>
-                <Link to="/login" className="text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors">Login</Link>
-                <Link to="/register" className="bg-[#064A6C] hover:bg-[#053A55] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-all btn-arrow-hover">
+                <Link to="/login" className="text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors px-2">Login</Link>
+                <Link to="/register" className="bg-[#064A6C] hover:bg-[#053A55] text-white font-medium text-sm px-5 py-2.5 rounded-[7px] transition-all btn-arrow-hover ml-2">
                   Get Started
                 </Link>
               </>
             )}
-          </div>
+          </nav>
 
           {/* Mobile Hamburger */}
           <button className="lg:hidden ml-auto p-2 text-[#4B5563]" onClick={() => setMobileOpen(!mobileOpen)}>
@@ -121,7 +120,7 @@ export function Header() {
                     <p className="text-xs text-[#4B5563] mb-3">Enter your domain + authorization code to start</p>
                     <div className="border-l-2 border-[#064A6C] bg-[#F9FAFB] rounded-r-[7px] p-3 mb-3">
                       <p className="text-xs font-medium text-[#09080E]">Transfer Bundle</p>
-                      <p className="text-xs text-[#4B5563] mt-1">Add hosting → 20% off. Add email → 3 months free.</p>
+                      <p className="text-xs text-[#4B5563] mt-1">Add hosting &rarr; 20% off. Add email &rarr; 3 months free.</p>
                     </div>
                     <Link to="/domains/transfer" className="text-sm font-medium text-[#064A6C] inline-flex items-center gap-1 arrow-link">Start Transfer <span className="arrow">&rarr;</span></Link>
                   </div>

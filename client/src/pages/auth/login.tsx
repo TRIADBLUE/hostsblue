@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,13 +20,9 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-end gap-2 mb-6">
-            <img src="/HostsBlue_Logo_Image_Trans.png" alt="" className="h-8 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-            <span className="text-3xl leading-none">
-              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-            </span>
-          </Link>
+          <div className="mb-6">
+            <Brandsignature brand="hostsblue" showTld={false} size={30} linkTo="/" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome back</h1>
           <p className="text-gray-500">Sign in to manage your domains and hosting</p>
         </div>

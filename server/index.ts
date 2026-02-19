@@ -125,7 +125,7 @@ app.get('/{*path}', (req, res) => {
   fs.readFile(indexPath, 'utf8', (err, data) => {
     if (err) {
       console.error(`[ERROR] Failed to read ${indexPath}:`, err.message);
-      res.send('<h1>HostsBlue Server Running</h1><p>index.html not found, but server is online.</p>');
+      res.send('<h1>hostsblue server running</h1><p>index.html not found, but server is online.</p>');
     } else {
       res.type('html').send(data);
     }
@@ -153,7 +153,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║   🌐 HostsBlue Server                                      ║
+║   hostsblue server                                            ║
 ║   Domain & Hosting Platform                                ║
 ║                                                            ║
 ║   Environment: ${NODE_ENV.padEnd(43)}║

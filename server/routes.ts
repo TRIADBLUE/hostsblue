@@ -229,7 +229,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
           await resend.emails.send({
             from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
             to: email,
-            subject: 'Reset Your HostsBlue Password',
+            subject: 'Reset Your hostsblue Password',
             html: `<p>Click the link below to reset your password:</p>
                    <p><a href="${process.env.CLIENT_URL}/reset-password?token=${resetToken}">Reset Password</a></p>
                    <p>This link expires in 1 hour.</p>`,

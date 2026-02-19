@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 export function Footer() {
   return (
@@ -7,13 +8,9 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="flex items-end gap-2 mb-3">
-              <img src="/HostsBlue_Logo_Image_Trans.png" alt="" className="h-6 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-              <span className="text-[20px] leading-none">
-                <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-                <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-              </span>
-            </Link>
+            <div className="mb-3">
+              <Brandsignature brand="hostsblue" size={20} linkTo="/" />
+            </div>
             <p className="text-sm text-[#4B5563] leading-relaxed">
               Domains, hosting, email, and security — everything your business needs online.
             </p>
@@ -57,50 +54,16 @@ export function Footer() {
 
           {/* TRIADBLUE Ecosystem */}
           <div>
-            <h3 className="text-sm mb-4">
-              <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span>
+            <h3 className="text-sm mb-4 flex items-center gap-1.5">
+              <Brandsignature brand="triadblue" showTld={false} size={14} />
               <span className="text-[#09080E] font-semibold"> Ecosystem</span>
             </h3>
             <ul className="space-y-3">
-              <li>
-                <a href="https://hostsblue.com" className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                  <img src="/HostsBlue_Logo_Image_Trans.png" alt="" className="h-5 w-auto" />
-                  <span>
-                    <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-                    <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-                    <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>.com</span>
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a href="https://swipesblue.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                  <img src="/swipesblue_favicon_wbg.png" alt="" className="h-5 w-auto" />
-                  <span>
-                    <span style={{ fontWeight: 700, color: '#374151' }}>swipes</span>
-                    <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-                    <span style={{ fontWeight: 700, color: '#374151' }}>.com</span>
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a href="https://businessblueprint.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                  <img src="/businessblueprint_icon.png" alt="" className="h-5 w-auto" />
-                  <span>
-                    <span style={{ fontWeight: 700, color: '#FF6B00' }}>business</span>
-                    <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blueprint</span>
-                    <span style={{ fontWeight: 700, color: '#FF6B00' }}>.io</span>
-                  </span>
-                </a>
-              </li>
-              <li>
-                <a href="#" className="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity">
-                  <img src="/scansblue_favicon.png" alt="" className="h-5 w-auto" />
-                  <span>
-                    <span style={{ fontWeight: 700, color: '#A00028' }}>scans</span>
-                    <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-                  </span>
-                </a>
-              </li>
+              <li><Brandsignature brand="hostsblue" size={14} /></li>
+              <li><Brandsignature brand="swipesblue" size={14} /></li>
+              <li><Brandsignature brand="businessblueprint" size={14} /></li>
+              <li><Brandsignature brand="scansblue" size={14} /></li>
+              <li><Brandsignature brand="triadblue" size={14} /></li>
             </ul>
           </div>
         </div>
@@ -129,18 +92,11 @@ export function Footer() {
           {/* Copyright */}
           <div className="flex flex-col sm:flex-row items-center gap-2 text-xs text-[#4B5563]">
             <p className="flex items-center gap-1 flex-wrap">
-              &copy; 2026{' '}
-              <span>
-                <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-                <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-              </span>
-              . A <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> Company.
+              &copy; 2026 <Brandsignature brand="hostsblue" size={12} />
+              . A <Brandsignature brand="triadblue" showTld={false} size={12} /> Company.
             </p>
             <span className="hidden sm:inline text-[#E5E7EB]">|</span>
-            <p>Secure payments by{' '}
-              <span style={{ fontWeight: 700, color: '#374151' }}>swipes</span>
-              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-            </p>
+            <p className="flex items-center gap-1">Secure payments by <Brandsignature brand="swipesblue" size={12} /></p>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   CreditCard, LifeBuoy, Settings, LogOut, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 const mainItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
@@ -40,13 +41,7 @@ export function DashboardLayout() {
       <aside className="hidden lg:flex w-64 bg-white border-r border-gray-200 flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <Link to="/" className="flex items-end gap-2">
-            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-7 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-            <span className="text-[20px] leading-none">
-              <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-              <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-            </span>
-          </Link>
+          <Brandsignature brand="hostsblue" showTld={false} size={20} linkTo="/" />
         </div>
 
         {/* Navigation */}
@@ -117,11 +112,7 @@ export function DashboardLayout() {
         <header className="lg:hidden bg-white border-b border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-end gap-2">
-              <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-6 w-auto" style={{ filter: 'drop-shadow(0.5px 0.5px 0px #09080E)' }} />
-              <span className="text-lg leading-none">
-                <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span>
-                <span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span>
-              </span>
+              <Brandsignature brand="hostsblue" showTld={false} size={18} />
             </Link>
           </div>
         </header>

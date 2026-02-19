@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Globe, CreditCard, Briefcase, ScanLine, Shield, Zap, Eye, Heart } from 'lucide-react';
+import { Shield, Zap, Eye, Heart } from 'lucide-react';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 export function AboutPage() {
   return (
@@ -81,66 +82,31 @@ export function AboutPage() {
       {/* TRIADBLUE Ecosystem */}
       <section className="py-12">
         <div className="text-center mb-12">
-          <h2 className="text-2xl font-[800] text-gray-900 mb-4">
-            The <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> Ecosystem
+          <h2 className="text-2xl font-[800] text-gray-900 mb-4 flex items-center justify-center gap-2">
+            The <Brandsignature brand="triadblue" showTld={false} size={24} /> Ecosystem
           </h2>
           <p className="text-[#4B5563] max-w-2xl mx-auto">
-            <span style={{ fontFamily: "'Archivo Semi Expanded', sans-serif", fontWeight: 700, color: '#008060' }}>hosts</span><span style={{ fontFamily: "'Archivo Narrow', sans-serif", fontWeight: 700, color: '#0000FF' }}>blue</span> is part of the <span style={{ fontWeight: 700, color: '#1844A6', letterSpacing: '0.05em' }}>TRIADBLUE</span> family of platforms, each designed to solve a specific business challenge while working seamlessly together.
+            <Brandsignature brand="hostsblue" showTld={false} size={16} /> is part of the <Brandsignature brand="triadblue" showTld={false} size={16} /> family of platforms, each designed to solve a specific business challenge while working seamlessly together.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-          {[
-            {
-              icon: Globe,
-              first: 'hosts',
-              firstColor: '#008060',
-              second: 'blue',
-              secondColor: '#0000FF',
-              tagline: 'Domains, hosting, email, and security',
-              active: true,
-            },
-            {
-              icon: CreditCard,
-              first: 'swipes',
-              firstColor: '#374151',
-              second: 'blue',
-              secondColor: '#0000FF',
-              tagline: 'Payment processing and invoicing',
-              active: false,
-            },
-            {
-              icon: Briefcase,
-              first: 'business',
-              firstColor: '#FF6B00',
-              second: 'blueprint',
-              secondColor: '#0000FF',
-              tagline: 'Business planning and strategy tools',
-              active: false,
-            },
-            {
-              icon: ScanLine,
-              first: 'scans',
-              firstColor: '#A00028',
-              second: 'blue',
-              secondColor: '#0000FF',
-              tagline: 'Document scanning and management',
-              active: false,
-            },
-          ].map(({ icon: Icon, first, firstColor, second, secondColor, tagline, active }) => (
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-5xl mx-auto">
+          {([
+            { brand: 'hostsblue' as const, tagline: 'Domains, hosting, email, and security', active: true },
+            { brand: 'swipesblue' as const, tagline: 'Payment processing and invoicing', active: false },
+            { brand: 'businessblueprint' as const, tagline: 'Business planning and strategy tools', active: false },
+            { brand: 'scansblue' as const, tagline: 'Document scanning and management', active: false },
+            { brand: 'triadblue' as const, tagline: 'The parent company', active: false },
+          ]).map(({ brand, tagline, active }) => (
             <div
-              key={first + second}
+              key={brand}
               className={`bg-white border rounded-[7px] p-6 text-center ${
                 active ? 'border-[#064A6C] shadow-sm' : 'border-[#E5E7EB]'
               }`}
             >
-              <div className="w-12 h-12 rounded-[7px] bg-[#064A6C]/10 flex items-center justify-center mx-auto mb-4">
-                <Icon className="w-6 h-6 text-[#064A6C]" />
+              <div className="mb-3 flex justify-center">
+                <Brandsignature brand={brand} size={16} />
               </div>
-              <p className="text-lg font-[800] mb-1">
-                <span style={{ color: firstColor }}>{first}</span>
-                <span style={{ color: secondColor }}>{second}</span>
-              </p>
               <p className="text-sm text-gray-500">{tagline}</p>
               {active && (
                 <span className="inline-block mt-3 text-xs font-medium bg-green-50 text-green-700 px-2 py-0.5 rounded-[7px]">

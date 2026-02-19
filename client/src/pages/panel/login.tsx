@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Brandsignature } from '@/components/ui/brandsignature';
 
 export function PanelLoginPage() {
   const [email, setEmail] = useState('');
@@ -25,11 +26,7 @@ export function PanelLoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center justify-center gap-2 mb-4">
-            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-8" />
-            <span className="text-3xl">
-              <span className="logo-hosts">hosts</span>
-              <span className="logo-blue">blue</span>
-            </span>
+            <Brandsignature brand="hostsblue" showTld={false} size={30} />
           </Link>
           <p className="text-lg font-semibold text-[#064A6C]">Panel</p>
           <p className="text-[#4B5563] text-sm mt-1">Sign in to access the admin panel</p>

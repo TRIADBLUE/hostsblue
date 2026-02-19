@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Brandsignature } from '@/components/ui/brandsignature';
 import {
   BarChart3,
   Users,
@@ -45,11 +46,7 @@ export function PanelLayout() {
         {/* Logo */}
         <div className="p-6 border-b border-[#E5E7EB]">
           <Link to="/panel" className="flex items-center gap-2">
-            <img src="/HostsBlue_Logo_Image_Trans.png" alt="hostsblue" className="h-6" />
-            <span className="text-xl">
-              <span className="logo-hosts">hosts</span>
-              <span className="logo-blue">blue</span>
-            </span>
+            <Brandsignature brand="hostsblue" showTld={false} size={20} />
             <span className="text-xs font-semibold text-[#064A6C] bg-teal-50 px-2 py-0.5 rounded-[7px]">
               Panel
             </span>

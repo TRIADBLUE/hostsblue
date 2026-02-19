@@ -631,9 +631,9 @@ export class OrderOrchestrator {
           <h2>Order Summary</h2>
           <ul>${itemsHtml}</ul>
           <p><strong>Total: $${(order.total / 100).toFixed(2)} ${order.currency}</strong></p>
-          <p>You can view your order details in your <a href="${process.env.CLIENT_URL}/dashboard/orders">HostsBlue dashboard</a>.</p>
+          <p>You can view your order details in your <a href="${process.env.CLIENT_URL}/dashboard/orders">hostsblue dashboard</a>.</p>
           <p>If you have any questions, please contact our support team.</p>
-          <p>Best regards,<br/>The HostsBlue Team</p>
+          <p>Best regards,<br/>The hostsblue Team</p>
         `,
       });
 
