@@ -7,6 +7,9 @@ import { rateLimiter } from './middleware/rate-limit.js';
 import { OpenSRSIntegration } from './services/openrs-integration.js';
 import { WPMUDevIntegration } from './services/wpmudev-integration.js';
 import { SwipesBluePayment } from './services/swipesblue-payment.js';
+import { OpenSRSEmailIntegration } from './services/opensrs-email-integration.js';
+import { OpenSRSSSLIntegration } from './services/opensrs-ssl-integration.js';
+import { SiteLockIntegration } from './services/sitelock-integration.js';
 import { OrderOrchestrator } from './services/order-orchestration.js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
@@ -20,7 +23,11 @@ const domainSearchSchema = z.object({
 
 const createOrderSchema = z.object({
   items: z.array(z.object({
-    type: z.enum(['domain_registration', 'domain_transfer', 'hosting_plan', 'privacy_protection']),
+    type: z.enum([
+      'domain_registration', 'domain_transfer', 'domain_renewal',
+      'hosting_plan', 'hosting_addon', 'privacy_protection',
+      'email_service', 'ssl_certificate', 'sitelock', 'website_builder',
+    ]),
     domain: z.string().optional(),
     tld: z.string().optional(),
     planId: z.number().optional(),
@@ -56,7 +63,10 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   const openSRS = new OpenSRSIntegration();
   const wpmudev = new WPMUDevIntegration();
   const swipesblue = new SwipesBluePayment();
-  const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev);
+  const opensrsEmail = new OpenSRSEmailIntegration();
+  const opensrsSSL = new OpenSRSSSLIntegration();
+  const sitelockService = new SiteLockIntegration();
+  const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev, opensrsEmail, opensrsSSL, sitelockService);
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
   // Rate limiters
@@ -477,7 +487,171 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     
     res.json(successResponse(updated));
   }));
-  
+
+  // ============================================================================
+  // DNS MANAGEMENT ROUTES
+  // ============================================================================
+
+  // Get DNS records for a domain
+  app.get('/api/v1/domains/:uuid/dns', requireAuth, asyncHandler(async (req, res) => {
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.uuid, req.params.uuid),
+        eq(schema.domains.customerId, req.user!.userId),
+      ),
+    });
+    if (!domain) return res.status(404).json(errorResponse('Domain not found'));
+
+    const records = await db.query.dnsRecords.findMany({
+      where: eq(schema.dnsRecords.domainId, domain.id),
+      orderBy: [schema.dnsRecords.type, schema.dnsRecords.name],
+    });
+
+    res.json(successResponse(records));
+  }));
+
+  // Create DNS record
+  app.post('/api/v1/domains/:uuid/dns', requireAuth, asyncHandler(async (req, res) => {
+    const { type, name, content, ttl, priority } = req.body;
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.uuid, req.params.uuid),
+        eq(schema.domains.customerId, req.user!.userId),
+      ),
+    });
+    if (!domain) return res.status(404).json(errorResponse('Domain not found'));
+
+    const [record] = await db.insert(schema.dnsRecords).values({
+      domainId: domain.id,
+      type,
+      name: name || '@',
+      content,
+      ttl: ttl || 3600,
+      priority: priority || null,
+    }).returning();
+
+    // Sync to OpenSRS if using our nameservers
+    if (domain.useHostsBlueNameservers) {
+      try {
+        await openSRS.updateDnsRecords(domain.domainName, [{ type, name: name || '@', content, ttl: ttl || 3600, priority }]);
+        await db.update(schema.dnsRecords)
+          .set({ syncedToOpenrs: true, lastSyncAt: new Date() })
+          .where(eq(schema.dnsRecords.id, record.id));
+      } catch (err: any) {
+        await db.update(schema.dnsRecords)
+          .set({ syncError: err.message })
+          .where(eq(schema.dnsRecords.id, record.id));
+      }
+    }
+
+    res.status(201).json(successResponse(record));
+  }));
+
+  // Update DNS record
+  app.patch('/api/v1/domains/:uuid/dns/:recordId', requireAuth, asyncHandler(async (req, res) => {
+    const { content, ttl, priority } = req.body;
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.uuid, req.params.uuid),
+        eq(schema.domains.customerId, req.user!.userId),
+      ),
+    });
+    if (!domain) return res.status(404).json(errorResponse('Domain not found'));
+
+    const recordId = parseInt(req.params.recordId);
+    const existing = await db.query.dnsRecords.findFirst({
+      where: and(eq(schema.dnsRecords.id, recordId), eq(schema.dnsRecords.domainId, domain.id)),
+    });
+    if (!existing) return res.status(404).json(errorResponse('DNS record not found'));
+
+    const [updated] = await db.update(schema.dnsRecords)
+      .set({
+        ...(content !== undefined && { content }),
+        ...(ttl !== undefined && { ttl }),
+        ...(priority !== undefined && { priority }),
+        syncedToOpenrs: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.dnsRecords.id, recordId))
+      .returning();
+
+    // Re-sync to OpenSRS
+    if (domain.useHostsBlueNameservers) {
+      try {
+        const allRecords = await db.query.dnsRecords.findMany({
+          where: and(eq(schema.dnsRecords.domainId, domain.id), eq(schema.dnsRecords.isActive, true)),
+        });
+        await openSRS.updateDnsRecords(domain.domainName, allRecords.map(r => ({
+          type: r.type, name: r.name, content: r.content, ttl: r.ttl, priority: r.priority ?? undefined,
+        })));
+        await db.update(schema.dnsRecords)
+          .set({ syncedToOpenrs: true, lastSyncAt: new Date(), syncError: null })
+          .where(eq(schema.dnsRecords.id, recordId));
+      } catch (err: any) {
+        await db.update(schema.dnsRecords)
+          .set({ syncError: err.message })
+          .where(eq(schema.dnsRecords.id, recordId));
+      }
+    }
+
+    res.json(successResponse(updated));
+  }));
+
+  // Delete DNS record
+  app.delete('/api/v1/domains/:uuid/dns/:recordId', requireAuth, asyncHandler(async (req, res) => {
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.uuid, req.params.uuid),
+        eq(schema.domains.customerId, req.user!.userId),
+      ),
+    });
+    if (!domain) return res.status(404).json(errorResponse('Domain not found'));
+
+    const recordId = parseInt(req.params.recordId);
+    const existing = await db.query.dnsRecords.findFirst({
+      where: and(eq(schema.dnsRecords.id, recordId), eq(schema.dnsRecords.domainId, domain.id)),
+    });
+    if (!existing) return res.status(404).json(errorResponse('DNS record not found'));
+
+    await db.delete(schema.dnsRecords).where(eq(schema.dnsRecords.id, recordId));
+
+    // Re-sync remaining records
+    if (domain.useHostsBlueNameservers) {
+      try {
+        const remaining = await db.query.dnsRecords.findMany({
+          where: and(eq(schema.dnsRecords.domainId, domain.id), eq(schema.dnsRecords.isActive, true)),
+        });
+        await openSRS.updateDnsRecords(domain.domainName, remaining.map(r => ({
+          type: r.type, name: r.name, content: r.content, ttl: r.ttl, priority: r.priority ?? undefined,
+        })));
+      } catch (err: any) {
+        console.error(`DNS sync error after delete for ${domain.domainName}:`, err);
+      }
+    }
+
+    res.json(successResponse(null, 'DNS record deleted'));
+  }));
+
+  // Sync all DNS records with OpenSRS
+  app.post('/api/v1/domains/:uuid/dns/sync', requireAuth, asyncHandler(async (req, res) => {
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.uuid, req.params.uuid),
+        eq(schema.domains.customerId, req.user!.userId),
+      ),
+    });
+    if (!domain) return res.status(404).json(errorResponse('Domain not found'));
+
+    const remoteRecords = await openSRS.getDnsRecords(domain.domainName);
+
+    res.json(successResponse({
+      localRecords: await db.query.dnsRecords.findMany({
+        where: eq(schema.dnsRecords.domainId, domain.id),
+      }),
+      remoteRecords,
+    }));
+  }));
+
   // ============================================================================
   // HOSTING ROUTES
   // ============================================================================
@@ -524,10 +698,95 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     if (!account) {
       return res.status(404).json(errorResponse('Hosting account not found'));
     }
-    
+
     res.json(successResponse(account));
   }));
-  
+
+  // Trigger hosting backup
+  app.post('/api/v1/hosting/accounts/:uuid/backup', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    if (account.wpmudevSiteId) {
+      await wpmudev.createBackup(account.wpmudevSiteId);
+    }
+
+    await db.update(schema.hostingAccounts)
+      .set({ lastBackupAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.hostingAccounts.id, account.id));
+
+    res.json(successResponse(null, 'Backup initiated'));
+  }));
+
+  // List hosting backups
+  app.get('/api/v1/hosting/accounts/:uuid/backups', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    let backups: any[] = [];
+    if (account.wpmudevSiteId) {
+      backups = await wpmudev.listBackups(account.wpmudevSiteId);
+    }
+
+    res.json(successResponse(backups));
+  }));
+
+  // Clear hosting cache
+  app.post('/api/v1/hosting/accounts/:uuid/cache/clear', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    if (account.wpmudevSiteId) {
+      await wpmudev.clearCache(account.wpmudevSiteId);
+    }
+
+    res.json(successResponse(null, 'Cache cleared'));
+  }));
+
+  // Get hosting usage stats
+  app.get('/api/v1/hosting/accounts/:uuid/stats', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+      with: { plan: true },
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    let liveStats: any = null;
+    if (account.wpmudevSiteId) {
+      liveStats = await wpmudev.getSiteStats(account.wpmudevSiteId);
+    }
+
+    res.json(successResponse({
+      storageUsedMB: account.storageUsedMB,
+      bandwidthUsedMB: account.bandwidthUsedMB,
+      lastStatsUpdate: account.lastStatsUpdate,
+      plan: account.plan,
+      liveStats,
+    }));
+  }));
+
   // ============================================================================
   // ORDER ROUTES
   // ============================================================================
@@ -562,26 +821,86 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
         const plan = await db.query.hostingPlans.findFirst({
           where: eq(schema.hostingPlans.id, item.planId),
         });
-        
+
         if (!plan) {
           return res.status(400).json(errorResponse(`Invalid hosting plan`));
         }
-        
-        // For hosting: termYears actually means months (1 = monthly, 12 = yearly)
+
         const termMonths = item.termYears;
         price = termMonths >= 12 ? plan.yearlyPrice : plan.monthlyPrice * termMonths;
         description = `${plan.name} Hosting (${termMonths} month${termMonths > 1 ? 's' : ''})`;
         configuration = { planId: plan.id, planSlug: plan.slug };
+
+      } else if (item.type === 'domain_transfer' && item.domain && item.tld) {
+        const tld = await db.query.tldPricing.findFirst({
+          where: eq(schema.tldPricing.tld, item.tld),
+        });
+        if (!tld) {
+          return res.status(400).json(errorResponse(`Invalid TLD: ${item.tld}`));
+        }
+        price = tld.transferPrice;
+        description = `Domain Transfer: ${item.domain}${item.tld}`;
+        configuration = { domain: item.domain, tld: item.tld, authCode: item.options?.authCode };
+
+      } else if (item.type === 'domain_renewal' && item.domain && item.tld) {
+        const tld = await db.query.tldPricing.findFirst({
+          where: eq(schema.tldPricing.tld, item.tld),
+        });
+        if (!tld) {
+          return res.status(400).json(errorResponse(`Invalid TLD: ${item.tld}`));
+        }
+        price = tld.renewalPrice * item.termYears;
+        description = `Domain Renewal: ${item.domain}${item.tld} (${item.termYears} year${item.termYears > 1 ? 's' : ''})`;
+        configuration = { domain: item.domain, tld: item.tld, domainName: `${item.domain}${item.tld}`, domainId: item.options?.domainId };
+
+      } else if (item.type === 'email_service' && item.planId) {
+        const emailPlan = await db.query.emailPlans.findFirst({
+          where: eq(schema.emailPlans.id, item.planId),
+        });
+        if (!emailPlan) {
+          return res.status(400).json(errorResponse('Invalid email plan'));
+        }
+        const termMonths = item.termYears;
+        price = termMonths >= 12 ? emailPlan.yearlyPrice : emailPlan.monthlyPrice * termMonths;
+        description = `${emailPlan.name} Email (${termMonths} month${termMonths > 1 ? 's' : ''})`;
+        configuration = { planId: emailPlan.id, domain: item.domain, username: item.options?.username || 'admin', storageQuotaMB: (emailPlan.storageGB || 1) * 1024 };
+
+      } else if (item.type === 'ssl_certificate') {
+        const sslPrice = item.options?.price || 4999;
+        price = sslPrice * item.termYears;
+        const productType = item.options?.productType || 'dv';
+        description = `SSL Certificate (${productType.toUpperCase()}) - ${item.domain || 'TBD'} (${item.termYears} year${item.termYears > 1 ? 's' : ''})`;
+        configuration = { domain: item.domain, productType, provider: item.options?.provider || 'sectigo', termYears: item.termYears, approverEmail: item.options?.approverEmail, productId: item.options?.productId };
+
+      } else if (item.type === 'sitelock') {
+        const slPrice = item.options?.price || 1999;
+        const termMonths = item.termYears;
+        price = slPrice * termMonths;
+        const planSlug = item.options?.planSlug || 'basic';
+        description = `SiteLock ${planSlug.charAt(0).toUpperCase() + planSlug.slice(1)} - ${item.domain || 'TBD'} (${termMonths} month${termMonths > 1 ? 's' : ''})`;
+        configuration = { domain: item.domain, planSlug, domainId: item.options?.domainId };
+
+      } else if (item.type === 'privacy_protection' && item.domain && item.tld) {
+        const tld = await db.query.tldPricing.findFirst({
+          where: eq(schema.tldPricing.tld, item.tld),
+        });
+        if (!tld || !tld.supportsPrivacy) {
+          return res.status(400).json(errorResponse(`Privacy not available for ${item.tld}`));
+        }
+        price = (tld.privacyPrice || 0) * item.termYears;
+        description = `WHOIS Privacy: ${item.domain}${item.tld} (${item.termYears} year${item.termYears > 1 ? 's' : ''})`;
+        configuration = { domain: item.domain, tld: item.tld, domainId: item.options?.domainId };
       }
-      
+
       subtotal += price;
+      const isDomainType = ['domain_registration', 'domain_transfer', 'domain_renewal', 'privacy_protection'].includes(item.type);
       orderItems.push({
         type: item.type,
         description,
         unitPrice: price,
         quantity: 1,
         totalPrice: price,
-        termMonths: item.termYears * (item.type === 'domain_registration' ? 12 : 1),
+        termMonths: isDomainType ? item.termYears * 12 : item.termYears,
         configuration,
       });
     }
@@ -794,6 +1113,35 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       limit: 5,
     });
     
+    // Email account count
+    const emailCount = await db.select({
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.emailAccounts)
+    .where(and(
+      eq(schema.emailAccounts.customerId, req.user!.userId),
+      eq(schema.emailAccounts.status, 'active'),
+      sql`${schema.emailAccounts.deletedAt} IS NULL`
+    ));
+
+    // SSL certificate count
+    const sslCount = await db.select({
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.sslCertificates)
+    .where(eq(schema.sslCertificates.customerId, req.user!.userId));
+
+    // SiteLock account count
+    const sitelockCount = await db.select({
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.sitelockAccounts)
+    .where(and(
+      eq(schema.sitelockAccounts.customerId, req.user!.userId),
+      eq(schema.sitelockAccounts.status, 'active'),
+      sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+    ));
+
     res.json(successResponse({
       domains: {
         total: domainStats.reduce((acc, s) => acc + Number(s.count), 0),
@@ -804,10 +1152,19 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
         total: hostingStats.reduce((acc, s) => acc + Number(s.count), 0),
         byStatus: hostingStats,
       },
+      email: {
+        total: Number(emailCount[0]?.count || 0),
+      },
+      ssl: {
+        total: Number(sslCount[0]?.count || 0),
+      },
+      sitelock: {
+        total: Number(sitelockCount[0]?.count || 0),
+      },
       recentOrders,
     }));
   }));
-  
+
   // ============================================================================
   // EMAIL ROUTES
   // ============================================================================
@@ -822,39 +1179,135 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   }));
 
   // Get customer's email accounts
-  app.get('/api/v1/email/accounts', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+  app.get('/api/v1/email/accounts', requireAuth, asyncHandler(async (req, res) => {
     const accounts = await db.query.emailAccounts.findMany({
-      where: eq(schema.emailAccounts.customerId, req.user!.userId),
-      with: { plan: true },
+      where: and(
+        eq(schema.emailAccounts.customerId, req.user!.userId),
+        sql`${schema.emailAccounts.deletedAt} IS NULL`
+      ),
+      with: { plan: true, domain: true },
       orderBy: desc(schema.emailAccounts.createdAt),
     });
     res.json(successResponse(accounts));
   }));
 
-  // Create email account
-  app.post('/api/v1/email/accounts', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const { email, planId, domainId } = req.body;
-    const [account] = await db.insert(schema.emailAccounts).values({
-      customerId: req.user!.userId,
-      email,
-      planId,
-      domainId,
-      status: 'active',
-    }).returning();
-    res.status(201).json(successResponse(account));
-  }));
-
-  // Delete email account
-  app.delete('/api/v1/email/accounts/:id', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+  // Get single email account
+  app.get('/api/v1/email/accounts/:uuid', requireAuth, asyncHandler(async (req, res) => {
     const account = await db.query.emailAccounts.findFirst({
-      where: and(eq(schema.emailAccounts.id, id), eq(schema.emailAccounts.customerId, req.user!.userId)),
+      where: and(
+        eq(schema.emailAccounts.uuid, req.params.uuid),
+        eq(schema.emailAccounts.customerId, req.user!.userId),
+        sql`${schema.emailAccounts.deletedAt} IS NULL`
+      ),
+      with: { plan: true, domain: true },
     });
     if (!account) return res.status(404).json(errorResponse('Email account not found'));
 
+    // Fetch live usage from OpenSRS
+    let usage: any = null;
+    if (account.mailDomain && account.username) {
+      try {
+        usage = await opensrsEmail.getMailboxUsage(account.mailDomain, account.username);
+      } catch { /* non-critical */ }
+    }
+
+    res.json(successResponse({ ...account, usage }));
+  }));
+
+  // Create email account (provisions through OpenSRS)
+  app.post('/api/v1/email/accounts', requireAuth, asyncHandler(async (req, res) => {
+    const { domain, username, password, planId, domainId } = req.body;
+    if (!domain || !username) {
+      return res.status(400).json(errorResponse('Domain and username are required'));
+    }
+
+    // Ensure mail domain exists
+    try {
+      await opensrsEmail.createMailDomain(domain);
+    } catch { /* may already exist */ }
+
+    // Create mailbox in OpenSRS
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.id, req.user!.userId),
+    });
+    const mailboxResult = await opensrsEmail.createMailbox(domain, username, password || crypto.randomBytes(16).toString('base64url'), {
+      firstName: customer?.firstName || undefined,
+      lastName: customer?.lastName || undefined,
+    });
+
+    const [account] = await db.insert(schema.emailAccounts).values({
+      customerId: req.user!.userId,
+      email: `${username}@${domain}`,
+      planId: planId || 1,
+      domainId: domainId || null,
+      status: 'active',
+      openSrsMailboxId: mailboxResult.email || `${username}@${domain}`,
+      mailDomain: domain,
+      username,
+    }).returning();
+
+    res.status(201).json(successResponse(account, 'Email account created'));
+  }));
+
+  // Update email account settings
+  app.patch('/api/v1/email/accounts/:uuid', requireAuth, asyncHandler(async (req, res) => {
+    const { forwardingAddress, spamFilterLevel, autoResponderEnabled } = req.body;
+    const account = await db.query.emailAccounts.findFirst({
+      where: and(
+        eq(schema.emailAccounts.uuid, req.params.uuid),
+        eq(schema.emailAccounts.customerId, req.user!.userId),
+        sql`${schema.emailAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Email account not found'));
+
+    // Update in OpenSRS
+    if (account.mailDomain && account.username) {
+      const updates: any = {};
+      if (forwardingAddress !== undefined) updates.forwardingAddress = forwardingAddress;
+      if (Object.keys(updates).length > 0) {
+        await opensrsEmail.updateMailbox(account.mailDomain, account.username, updates);
+      }
+      if (spamFilterLevel) {
+        await opensrsEmail.updateSpamSettings(account.mailDomain, account.username, spamFilterLevel);
+      }
+    }
+
+    const [updated] = await db.update(schema.emailAccounts)
+      .set({
+        ...(forwardingAddress !== undefined && { forwardingAddress }),
+        ...(spamFilterLevel !== undefined && { spamFilterLevel }),
+        ...(autoResponderEnabled !== undefined && { autoResponderEnabled }),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.emailAccounts.id, account.id))
+      .returning();
+
+    res.json(successResponse(updated));
+  }));
+
+  // Delete email account
+  app.delete('/api/v1/email/accounts/:uuid', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.emailAccounts.findFirst({
+      where: and(
+        eq(schema.emailAccounts.uuid, req.params.uuid),
+        eq(schema.emailAccounts.customerId, req.user!.userId),
+        sql`${schema.emailAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Email account not found'));
+
+    // Delete from OpenSRS
+    if (account.mailDomain && account.username) {
+      try {
+        await opensrsEmail.deleteMailbox(account.mailDomain, account.username);
+      } catch { /* best effort */ }
+    }
+
     await db.update(schema.emailAccounts)
-      .set({ status: 'suspended' })
-      .where(eq(schema.emailAccounts.id, id));
+      .set({ status: 'suspended', deletedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.emailAccounts.id, account.id));
+
     res.json(successResponse(null, 'Email account deleted'));
   }));
 
@@ -862,8 +1315,14 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // SSL CERTIFICATE ROUTES
   // ============================================================================
 
+  // Get available SSL products
+  app.get('/api/v1/ssl/products', asyncHandler(async (req, res) => {
+    const products = await opensrsSSL.getProducts();
+    res.json(successResponse(products));
+  }));
+
   // Get customer's SSL certificates
-  app.get('/api/v1/ssl/certificates', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+  app.get('/api/v1/ssl/certificates', requireAuth, asyncHandler(async (req, res) => {
     const certs = await db.query.sslCertificates.findMany({
       where: eq(schema.sslCertificates.customerId, req.user!.userId),
       orderBy: desc(schema.sslCertificates.createdAt),
@@ -871,36 +1330,147 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(certs));
   }));
 
-  // Create SSL certificate
-  app.post('/api/v1/ssl/certificates', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const { domainName, type } = req.body;
-    const [cert] = await db.insert(schema.sslCertificates).values({
-      customerId: req.user!.userId,
-      domainName,
-      type: type || 'dv',
-      status: 'pending',
-      provider: 'hostsblue',
-    }).returning();
-    res.status(201).json(successResponse(cert));
-  }));
-
-  // Renew SSL certificate
-  app.post('/api/v1/ssl/certificates/:id/renew', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+  // Get single SSL certificate
+  app.get('/api/v1/ssl/certificates/:uuid', requireAuth, asyncHandler(async (req, res) => {
     const cert = await db.query.sslCertificates.findFirst({
-      where: and(eq(schema.sslCertificates.id, id), eq(schema.sslCertificates.customerId, req.user!.userId)),
+      where: and(
+        eq(schema.sslCertificates.uuid, req.params.uuid),
+        eq(schema.sslCertificates.customerId, req.user!.userId),
+      ),
     });
     if (!cert) return res.status(404).json(errorResponse('Certificate not found'));
 
-    const [updated] = await db.update(schema.sslCertificates)
+    // Fetch live DCV status from OpenSRS
+    let dcvStatus: any = null;
+    if (cert.openSrsOrderId && cert.status === 'pending') {
+      try {
+        dcvStatus = await opensrsSSL.getDcvStatus(cert.openSrsOrderId);
+      } catch { /* non-critical */ }
+    }
+
+    res.json(successResponse({ ...cert, liveDcvStatus: dcvStatus }));
+  }));
+
+  // Order SSL certificate (provisions through OpenSRS)
+  app.post('/api/v1/ssl/certificates', requireAuth, asyncHandler(async (req, res) => {
+    const { domainName, productType, provider, csr, approverEmail, termYears, domainId, productId } = req.body;
+    if (!domainName) {
+      return res.status(400).json(errorResponse('Domain name is required'));
+    }
+
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.id, req.user!.userId),
+    });
+    if (!customer) return res.status(404).json(errorResponse('Customer not found'));
+
+    const orderResult = await opensrsSSL.orderCertificate({
+      productType: productType || 'dv',
+      provider: provider || 'sectigo',
+      domain: domainName,
+      period: termYears || 1,
+      csr: csr || '',
+      approverEmail: approverEmail || customer.email,
+      contacts: {
+        admin: {
+          firstName: customer.firstName || '',
+          lastName: customer.lastName || '',
+          email: customer.email,
+          phone: customer.phone || '',
+        },
+      },
+    });
+
+    const [cert] = await db.insert(schema.sslCertificates).values({
+      customerId: req.user!.userId,
+      domainId: domainId || null,
+      domainName,
+      type: productType || 'dv',
+      provider: provider || 'sectigo',
+      status: 'pending',
+      openSrsOrderId: orderResult.orderId,
+      productId: productId || null,
+      providerName: provider || 'sectigo',
+      validationLevel: productType || 'dv',
+      csrPem: csr || null,
+      approverEmail: approverEmail || customer.email,
+      dcvMethod: 'email',
+      dcvStatus: 'pending',
+      termYears: termYears || 1,
+    }).returning();
+
+    res.status(201).json(successResponse(cert, 'SSL certificate ordered'));
+  }));
+
+  // Generate CSR for a certificate
+  app.post('/api/v1/ssl/certificates/:uuid/generate-csr', requireAuth, asyncHandler(async (req, res) => {
+    const cert = await db.query.sslCertificates.findFirst({
+      where: and(
+        eq(schema.sslCertificates.uuid, req.params.uuid),
+        eq(schema.sslCertificates.customerId, req.user!.userId),
+      ),
+    });
+    if (!cert) return res.status(404).json(errorResponse('Certificate not found'));
+
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.id, req.user!.userId),
+    });
+
+    const { commonName, organization, country, state, locality } = req.body;
+    const csrResult = await opensrsSSL.generateCSR({
+      domain: commonName || cert.domainName || '',
+      organization: organization || customer?.companyName || customer?.firstName || '',
+      country: country || customer?.countryCode || 'US',
+      state: state || customer?.state || '',
+      city: locality || customer?.city || '',
+    });
+
+    // Store CSR and encrypted private key
+    await db.update(schema.sslCertificates)
       .set({
-        status: 'pending',
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        csrPem: csrResult.csr,
+        privateKeyEncrypted: csrResult.privateKey,
         updatedAt: new Date(),
       })
-      .where(eq(schema.sslCertificates.id, id))
-      .returning();
-    res.json(successResponse(updated, 'Certificate renewal initiated'));
+      .where(eq(schema.sslCertificates.id, cert.id));
+
+    res.json(successResponse({ csr: csrResult.csr }, 'CSR generated'));
+  }));
+
+  // Reissue SSL certificate
+  app.post('/api/v1/ssl/certificates/:uuid/reissue', requireAuth, asyncHandler(async (req, res) => {
+    const cert = await db.query.sslCertificates.findFirst({
+      where: and(
+        eq(schema.sslCertificates.uuid, req.params.uuid),
+        eq(schema.sslCertificates.customerId, req.user!.userId),
+      ),
+    });
+    if (!cert || !cert.openSrsOrderId) return res.status(404).json(errorResponse('Certificate not found'));
+
+    const { newCsr } = req.body;
+    if (!newCsr) return res.status(400).json(errorResponse('New CSR is required'));
+
+    await opensrsSSL.reissueCertificate(cert.openSrsOrderId, newCsr);
+
+    await db.update(schema.sslCertificates)
+      .set({ csrPem: newCsr, status: 'pending', dcvStatus: 'pending', updatedAt: new Date() })
+      .where(eq(schema.sslCertificates.id, cert.id));
+
+    res.json(successResponse(null, 'Certificate reissue initiated'));
+  }));
+
+  // Resend DCV email
+  app.post('/api/v1/ssl/certificates/:uuid/resend-dcv', requireAuth, asyncHandler(async (req, res) => {
+    const cert = await db.query.sslCertificates.findFirst({
+      where: and(
+        eq(schema.sslCertificates.uuid, req.params.uuid),
+        eq(schema.sslCertificates.customerId, req.user!.userId),
+      ),
+    });
+    if (!cert || !cert.openSrsOrderId) return res.status(404).json(errorResponse('Certificate not found'));
+
+    await opensrsSSL.resendDcvEmail(cert.openSrsOrderId);
+
+    res.json(successResponse(null, 'DCV email resent'));
   }));
 
   // ============================================================================
@@ -908,26 +1478,125 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // ============================================================================
 
   // Get customer's SiteLock accounts
-  app.get('/api/v1/sitelock/accounts', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+  app.get('/api/v1/sitelock/accounts', requireAuth, asyncHandler(async (req, res) => {
     const accounts = await db.query.sitelockAccounts.findMany({
-      where: eq(schema.sitelockAccounts.customerId, req.user!.userId),
+      where: and(
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+      with: { domain: true },
       orderBy: desc(schema.sitelockAccounts.createdAt),
     });
     res.json(successResponse(accounts));
   }));
 
-  // Trigger SiteLock scan
-  app.post('/api/v1/sitelock/accounts/:id/scan', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
+  // Get single SiteLock account with scan results
+  app.get('/api/v1/sitelock/accounts/:uuid', requireAuth, asyncHandler(async (req, res) => {
     const account = await db.query.sitelockAccounts.findFirst({
-      where: and(eq(schema.sitelockAccounts.id, id), eq(schema.sitelockAccounts.customerId, req.user!.userId)),
+      where: and(
+        eq(schema.sitelockAccounts.uuid, req.params.uuid),
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+      with: { domain: true },
     });
     if (!account) return res.status(404).json(errorResponse('SiteLock account not found'));
 
+    // Fetch live scan results if we have a SiteLock account ID
+    let scanResults: any = null;
+    if (account.sitelockAccountId) {
+      try {
+        scanResults = await sitelockService.getScanResults(account.sitelockAccountId);
+      } catch { /* non-critical */ }
+    }
+
+    res.json(successResponse({ ...account, scanResults }));
+  }));
+
+  // Trigger SiteLock scan
+  app.post('/api/v1/sitelock/accounts/:uuid/scan', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.sitelockAccounts.findFirst({
+      where: and(
+        eq(schema.sitelockAccounts.uuid, req.params.uuid),
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('SiteLock account not found'));
+
+    let scanResult: any = null;
+    if (account.sitelockAccountId) {
+      scanResult = await sitelockService.initiateScan(account.sitelockAccountId, req.body.scanType || 'full');
+    }
+
     await db.update(schema.sitelockAccounts)
       .set({ lastScanAt: new Date(), updatedAt: new Date() })
-      .where(eq(schema.sitelockAccounts.id, id));
-    res.json(successResponse(null, 'Scan initiated'));
+      .where(eq(schema.sitelockAccounts.id, account.id));
+
+    res.json(successResponse(scanResult, 'Scan initiated'));
+  }));
+
+  // Get trust seal
+  app.get('/api/v1/sitelock/accounts/:uuid/seal', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.sitelockAccounts.findFirst({
+      where: and(
+        eq(schema.sitelockAccounts.uuid, req.params.uuid),
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('SiteLock account not found'));
+
+    if (!account.sitelockAccountId) {
+      return res.status(400).json(errorResponse('SiteLock account not provisioned'));
+    }
+
+    const seal = await sitelockService.getTrustSeal(account.sitelockAccountId);
+    res.json(successResponse(seal));
+  }));
+
+  // Toggle firewall
+  app.post('/api/v1/sitelock/accounts/:uuid/firewall', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.sitelockAccounts.findFirst({
+      where: and(
+        eq(schema.sitelockAccounts.uuid, req.params.uuid),
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('SiteLock account not found'));
+
+    if (!account.sitelockAccountId) {
+      return res.status(400).json(errorResponse('SiteLock account not provisioned'));
+    }
+
+    const enabled = req.body.enabled !== false;
+    await sitelockService.toggleFirewall(account.sitelockAccountId, enabled);
+
+    await db.update(schema.sitelockAccounts)
+      .set({ firewallEnabled: enabled, updatedAt: new Date() })
+      .where(eq(schema.sitelockAccounts.id, account.id));
+
+    res.json(successResponse({ enabled }, `Firewall ${enabled ? 'enabled' : 'disabled'}`));
+  }));
+
+  // Get firewall status
+  app.get('/api/v1/sitelock/accounts/:uuid/firewall', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.sitelockAccounts.findFirst({
+      where: and(
+        eq(schema.sitelockAccounts.uuid, req.params.uuid),
+        eq(schema.sitelockAccounts.customerId, req.user!.userId),
+        sql`${schema.sitelockAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('SiteLock account not found'));
+
+    if (!account.sitelockAccountId) {
+      return res.status(400).json(errorResponse('SiteLock account not provisioned'));
+    }
+
+    const status = await sitelockService.getFirewallStatus(account.sitelockAccountId);
+    res.json(successResponse(status));
   }));
 
   // ============================================================================
@@ -1046,6 +1715,224 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       .where(eq(schema.supportTickets.id, ticket.id));
 
     res.status(201).json(successResponse(message));
+  }));
+
+  // ============================================================================
+  // WEBHOOK HANDLERS (Phase 6)
+  // ============================================================================
+
+  // OpenSRS Domain webhook (transfer status, renewal notifications, expiry alerts)
+  app.post('/api/v1/webhooks/opensrs', asyncHandler(async (req, res) => {
+    const safeHeaders = { ...req.headers };
+    delete safeHeaders.authorization;
+    delete safeHeaders.cookie;
+
+    await db.insert(schema.webhookEvents).values({
+      source: 'opensrs',
+      eventType: req.body.action || req.body.type || 'unknown',
+      payload: req.body,
+      headers: safeHeaders,
+      idempotencyKey: req.body.id ? `opensrs-${req.body.id}` : undefined,
+    });
+
+    const action = req.body.action || req.body.type || '';
+    const data = req.body.attributes || req.body.data || req.body;
+
+    switch (action) {
+      case 'TRANSFER_COMPLETED':
+      case 'transfer_completed': {
+        const domainName = data.domain || data.domain_name;
+        if (domainName) {
+          await db.update(schema.domains)
+            .set({
+              status: 'active',
+              transferStatus: 'completed',
+              registrationDate: new Date(),
+              expiryDate: data.expiry_date ? new Date(data.expiry_date) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+              isTransfer: true,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.domains.domainName, domainName));
+        }
+        break;
+      }
+
+      case 'TRANSFER_FAILED':
+      case 'transfer_failed': {
+        const domainName = data.domain || data.domain_name;
+        if (domainName) {
+          await db.update(schema.domains)
+            .set({
+              status: 'pending',
+              transferStatus: 'failed',
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.domains.domainName, domainName));
+        }
+        break;
+      }
+
+      case 'DOMAIN_RENEWED':
+      case 'domain_renewed': {
+        const domainName = data.domain || data.domain_name;
+        if (domainName) {
+          await db.update(schema.domains)
+            .set({
+              status: 'active',
+              expiryDate: data.new_expiry_date ? new Date(data.new_expiry_date) : undefined,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.domains.domainName, domainName));
+        }
+        break;
+      }
+
+      case 'DOMAIN_EXPIRED':
+      case 'domain_expired': {
+        const domainName = data.domain || data.domain_name;
+        if (domainName) {
+          await db.update(schema.domains)
+            .set({
+              status: 'expired',
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.domains.domainName, domainName));
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  }));
+
+  // OpenSRS Email webhook (mailbox events)
+  app.post('/api/v1/webhooks/opensrs-email', asyncHandler(async (req, res) => {
+    const safeHeaders = { ...req.headers };
+    delete safeHeaders.authorization;
+    delete safeHeaders.cookie;
+
+    await db.insert(schema.webhookEvents).values({
+      source: 'opensrs-email',
+      eventType: req.body.event || req.body.type || 'unknown',
+      payload: req.body,
+      headers: safeHeaders,
+      idempotencyKey: req.body.id ? `opensrs-email-${req.body.id}` : undefined,
+    });
+
+    const event = req.body.event || req.body.type || '';
+    const data = req.body.data || req.body;
+
+    switch (event) {
+      case 'mailbox.suspended':
+      case 'mailbox.disabled': {
+        const email = data.email || data.mailbox;
+        if (email) {
+          await db.update(schema.emailAccounts)
+            .set({ status: 'suspended', updatedAt: new Date() })
+            .where(eq(schema.emailAccounts.email, email));
+        }
+        break;
+      }
+
+      case 'mailbox.quota_exceeded': {
+        const email = data.email || data.mailbox;
+        if (email) {
+          await db.update(schema.emailAccounts)
+            .set({ storageUsedMB: data.storage_used_mb || 0, updatedAt: new Date() })
+            .where(eq(schema.emailAccounts.email, email));
+        }
+        break;
+      }
+
+      case 'domain.deleted': {
+        const mailDomain = data.domain;
+        if (mailDomain) {
+          await db.update(schema.emailAccounts)
+            .set({ status: 'suspended', deletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(schema.emailAccounts.mailDomain, mailDomain));
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  }));
+
+  // SiteLock webhook (scan results, malware detection, firewall events)
+  app.post('/api/v1/webhooks/sitelock', asyncHandler(async (req, res) => {
+    // Verify signature
+    const signature = req.headers['x-sitelock-signature'] as string;
+    if (signature && !sitelockService.verifyWebhookSignature(req.body, signature)) {
+      return res.status(401).json(errorResponse('Invalid signature'));
+    }
+
+    const safeHeaders = { ...req.headers };
+    delete safeHeaders.authorization;
+    delete safeHeaders.cookie;
+
+    await db.insert(schema.webhookEvents).values({
+      source: 'sitelock',
+      eventType: req.body.event || req.body.type || 'unknown',
+      payload: req.body,
+      headers: safeHeaders,
+      idempotencyKey: req.body.id ? `sitelock-${req.body.id}` : undefined,
+    });
+
+    const event = req.body.event || req.body.type || '';
+    const data = req.body.data || req.body;
+    const accountId = data.account_id || data.accountId;
+
+    switch (event) {
+      case 'scan.completed': {
+        if (accountId) {
+          await db.update(schema.sitelockAccounts)
+            .set({
+              lastScanAt: new Date(),
+              lastScanResult: data.results || data,
+              malwareFound: data.malware_found || false,
+              riskLevel: data.risk_level || 'low',
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+        }
+        break;
+      }
+
+      case 'malware.detected': {
+        if (accountId) {
+          await db.update(schema.sitelockAccounts)
+            .set({
+              malwareFound: true,
+              riskLevel: data.risk_level || 'high',
+              lastScanResult: data,
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+        }
+        break;
+      }
+
+      case 'malware.cleaned': {
+        if (accountId) {
+          await db.update(schema.sitelockAccounts)
+            .set({
+              malwareFound: false,
+              riskLevel: 'low',
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+        }
+        break;
+      }
+
+      case 'firewall.event': {
+        // Log only — firewall events are informational
+        console.log(`[SiteLock Webhook] Firewall event for account ${accountId}:`, data);
+        break;
+      }
+    }
+
+    res.json({ received: true });
   }));
 
   // Validation error handler
