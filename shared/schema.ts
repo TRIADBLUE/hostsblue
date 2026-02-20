@@ -817,6 +817,17 @@ export const emailAccounts = pgTable('email_accounts', {
   storageUsedMB: integer('storage_used_mb').default(0),
   autoRenew: boolean('auto_renew').default(true).notNull(),
   subscriptionEndDate: timestamp('subscription_end_date'),
+
+  // OpenSRS Hosted Email integration
+  openSrsMailboxId: varchar('opensrs_mailbox_id', { length: 100 }),
+  mailDomain: varchar('mail_domain', { length: 253 }),
+  username: varchar('username', { length: 100 }),
+  forwardingAddress: varchar('forwarding_address', { length: 255 }),
+  spamFilterLevel: varchar('spam_filter_level', { length: 20 }).default('medium'),
+  autoResponderEnabled: boolean('auto_responder_enabled').default(false),
+  lastLoginAt: timestamp('last_login_at'),
+  messagesCount: integer('messages_count').default(0),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
