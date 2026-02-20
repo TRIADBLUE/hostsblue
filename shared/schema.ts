@@ -858,11 +858,29 @@ export const sslCertificates = pgTable('ssl_certificates', {
   expiresAt: timestamp('expires_at'),
   autoRenew: boolean('auto_renew').default(true).notNull(),
   domainName: varchar('domain_name', { length: 253 }),
+
+  // OpenSRS Trust Services integration
+  openSrsOrderId: varchar('opensrs_order_id', { length: 100 }),
+  productId: varchar('product_id', { length: 50 }),
+  providerName: varchar('provider_name', { length: 50 }),
+  validationLevel: varchar('validation_level', { length: 20 }),
+  csrPem: text('csr_pem'),
+  privateKeyEncrypted: text('private_key_encrypted'),
+  certificatePem: text('certificate_pem'),
+  intermediatePem: text('intermediate_pem'),
+  approverEmail: varchar('approver_email', { length: 255 }),
+  dcvMethod: varchar('dcv_method', { length: 20 }),
+  dcvStatus: varchar('dcv_status', { length: 20 }),
+  monthlyPrice: integer('monthly_price'),
+  totalPrice: integer('total_price'),
+  termYears: integer('term_years'),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => ({
   customerIdx: index('ssl_customer_idx').on(table.customerId),
   domainIdx: index('ssl_domain_idx').on(table.domainId),
+  openSrsIdx: index('ssl_opensrs_idx').on(table.openSrsOrderId),
 }));
 
 export const sslCertificatesRelations = relations(sslCertificates, ({ one }) => ({

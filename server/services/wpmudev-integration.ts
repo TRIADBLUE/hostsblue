@@ -24,7 +24,7 @@ export class WPMUDevError extends Error {
 /**
  * Encrypt a credential string using AES-256-GCM
  */
-function encryptCredential(plaintext: string): string {
+export function encryptCredential(plaintext: string): string {
   if (!CREDENTIAL_ENCRYPTION_KEY) {
     console.warn('CREDENTIAL_ENCRYPTION_KEY not set - storing credentials in base64 only (NOT SECURE)');
     return Buffer.from(plaintext).toString('base64');
