@@ -59,7 +59,7 @@ hostsblue/
 │   ├── storage.ts              # Database queries (Drizzle ORM)
 │   ├── middleware/             # Auth, validation, etc.
 │   ├── services/               # Business logic
-│   │   ├── openrs-integration.ts    # Domain registration/transfer
+│   │   ├── opensrs-integration.ts    # Domain registration/transfer
 │   │   ├── wpmudev-integration.ts   # WordPress hosting
 │   │   ├── swipesblue-payment.ts    # Payment processing
 │   │   └── order-orchestration.ts   # Coordinate partner APIs
@@ -84,7 +84,7 @@ npm install
 
 # Configure environment (.env)
 cp .env.example .env
-# Edit with: DATABASE_URL, OPENRS_API_KEY, OPENRS_API_URL, 
+# Edit with: DATABASE_URL, OPENSRS_API_KEY, OPENSRS_API_URL, 
 #            WPMUDEV_API_KEY, SWIPESBLUE_API_KEY, RESEND_API_KEY
 
 # Start dev server (Vite HMR + Express)
@@ -111,7 +111,7 @@ Schema is centralized in `shared/schema.ts` using Drizzle ORM. Add tables here, 
 ## Integration Patterns (How to Work with Partners)
 
 ### OpenSRS Domain Integration
-**Service:** `server/services/openrs-integration.ts`
+**Service:** `server/services/opensrs-integration.ts`
 
 **Key Operations:**
 - Domain availability check
@@ -389,7 +389,7 @@ logger.error('OpenSRS API error', { domain, statusCode, message });
 | Purpose | File |
 |---------|------|
 | Database schema | `shared/schema.ts` |
-| OpenSRS integration | `server/services/openrs-integration.ts` |
+| OpenSRS integration | `server/services/opensrs-integration.ts` |
 | WPMUDEV integration | `server/services/wpmudev-integration.ts` |
 | SwipesBlue payment | `server/services/swipesblue-payment.ts` |
 | API routes | `server/routes.ts` |

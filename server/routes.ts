@@ -4,7 +4,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../shared/schema.js';
 import { authenticateToken, requireAuth, generateTokens, blacklistToken } from './middleware/auth.js';
 import { rateLimiter } from './middleware/rate-limit.js';
-import { OpenSRSIntegration } from './services/openrs-integration.js';
+import { OpenSRSIntegration } from './services/opensrs-integration.js';
 import { WPMUDevIntegration } from './services/wpmudev-integration.js';
 import { SwipesBluePayment } from './services/swipesblue-payment.js';
 import { OpenSRSEmailIntegration } from './services/opensrs-email-integration.js';

@@ -9,9 +9,9 @@
 import crypto from 'crypto';
 import { encryptCredential } from './wpmudev-integration.js';
 
-const OPENRS_API_URL = process.env.OPENRS_API_URL || 'https://horizon.opensrs.net:55443';
-const OPENRS_API_KEY = process.env.OPENRS_API_KEY || '';
-const OPENRS_USERNAME = process.env.OPENRS_USERNAME || '';
+const OPENSRS_API_URL = process.env.OPENSRS_API_URL || 'https://horizon.opensrs.net:55443';
+const OPENSRS_API_KEY = process.env.OPENSRS_API_KEY || '';
+const OPENSRS_USERNAME = process.env.OPENSRS_USERNAME || '';
 
 export class OpenSRSSSLError extends Error {
   code: string;
@@ -43,9 +43,9 @@ export class OpenSRSSSLIntegration {
   private isMockMode: boolean;
 
   constructor() {
-    this.apiUrl = OPENRS_API_URL;
-    this.apiKey = OPENRS_API_KEY;
-    this.username = OPENRS_USERNAME;
+    this.apiUrl = OPENSRS_API_URL;
+    this.apiKey = OPENSRS_API_KEY;
+    this.username = OPENSRS_USERNAME;
 
     this.isMockMode = !this.apiKey || this.apiKey === 'test' || this.apiKey === 'your_opensrs_api_key';
 

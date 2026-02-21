@@ -9,7 +9,7 @@ import { eq, and } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Resend } from 'resend';
 import * as schema from '../../shared/schema.js';
-import { OpenSRSIntegration } from './openrs-integration.js';
+import { OpenSRSIntegration } from './opensrs-integration.js';
 import { WPMUDevIntegration } from './wpmudev-integration.js';
 import { OpenSRSEmailIntegration } from './opensrs-email-integration.js';
 import { OpenSRSSSLIntegration } from './opensrs-ssl-integration.js';

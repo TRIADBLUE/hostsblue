@@ -40,7 +40,7 @@ hostsblue/
 │   │   ├── auth.ts           # JWT authentication, token generation, blacklisting
 │   │   └── rate-limit.ts     # In-memory rate limiter
 │   └── services/
-│       ├── openrs-integration.ts    # OpenSRS domain API client
+│       ├── opensrs-integration.ts    # OpenSRS domain API client
 │       ├── wpmudev-integration.ts   # WPMUDEV hosting API client
 │       ├── swipesblue-payment.ts    # SwipesBlue payment gateway client
 │       └── order-orchestration.ts   # Coordinates fulfillment after payment
@@ -93,7 +93,7 @@ Defined in `shared/schema.ts` using Drizzle's `pgTable` with:
 - **PostgreSQL** — Primary data store. Connection via `DATABASE_URL` environment variable. Drizzle ORM for schema management and queries. Sessions stored in PostgreSQL via `connect-pg-simple`.
 
 ### Third-Party APIs
-- **OpenSRS API** — Domain registration, transfers, renewals, DNS management. Configured via `OPENRS_API_URL`, `OPENRS_API_KEY`, `OPENRS_USERNAME`. Custom nameservers via `HOSTSBLUE_NS1`/`HOSTSBLUE_NS2`.
+- **OpenSRS API** — Domain registration, transfers, renewals, DNS management. Configured via `OPENSRS_API_URL`, `OPENSRS_API_KEY`, `OPENSRS_USERNAME`. Custom nameservers via `HOSTSBLUE_NS1`/`HOSTSBLUE_NS2`.
 - **WPMUDEV API** — WordPress hosting provisioning and management. Configured via `WPMUDEV_API_URL`, `WPMUDEV_API_KEY`. Credentials encrypted with AES-256-GCM using `CREDENTIAL_ENCRYPTION_KEY`.
 - **SwipesBlue API** — Payment processing (checkout sessions, refunds, webhook verification). Configured via `SWIPESBLUE_API_URL`, `SWIPESBLUE_API_KEY`, `SWIPESBLUE_WEBHOOK_SECRET`. Includes retry logic with exponential backoff.
 - **Resend** — Transactional email delivery (order confirmations, password resets, etc.). Configured via `RESEND_API_KEY`, `RESEND_FROM_EMAIL`.
@@ -107,9 +107,9 @@ Defined in `shared/schema.ts` using Drizzle's `pgTable` with:
 | `SESSION_SECRET` | Express session secret |
 | `JWT_PRIVATE_KEY` | RS256 private key for signing JWTs |
 | `JWT_PUBLIC_KEY` | RS256 public key for verifying JWTs |
-| `OPENRS_API_URL` | OpenSRS API endpoint |
-| `OPENRS_API_KEY` | OpenSRS API key |
-| `OPENRS_USERNAME` | OpenSRS username |
+| `OPENSRS_API_URL` | OpenSRS API endpoint |
+| `OPENSRS_API_KEY` | OpenSRS API key |
+| `OPENSRS_USERNAME` | OpenSRS username |
 | `HOSTSBLUE_NS1` / `HOSTSBLUE_NS2` | Custom nameservers |
 | `WPMUDEV_API_URL` | WPMUDEV API endpoint |
 | `WPMUDEV_API_KEY` | WPMUDEV API key |
