@@ -743,8 +743,37 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(backups));
   }));
 
+  // Restore from backup
+  app.post('/api/v1/hosting/accounts/:uuid/restore/:backupId', requireAuth, asyncHandler(async (req, res) => {
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    if (!account.wpmudevSiteId) {
+      return res.status(400).json(errorResponse('Hosting account not provisioned'));
+    }
+
+    await wpmudev.restoreBackup(account.wpmudevSiteId, req.params.backupId);
+
+    await db.insert(schema.auditLogs).values({
+      customerId: req.user!.userId,
+      action: 'hosting_backup_restored',
+      entityType: 'hosting_account',
+      entityId: String(account.id),
+      description: `Restored backup ${req.params.backupId} for ${account.primaryDomain}`,
+      ipAddress: req.ip,
+    });
+
+    res.json(successResponse(null, 'Backup restore initiated'));
+  }));
+
   // Clear hosting cache
-  app.post('/api/v1/hosting/accounts/:uuid/cache/clear', requireAuth, asyncHandler(async (req, res) => {
+  app.delete('/api/v1/hosting/accounts/:uuid/cache', requireAuth, asyncHandler(async (req, res) => {
     const account = await db.query.hostingAccounts.findFirst({
       where: and(
         eq(schema.hostingAccounts.uuid, req.params.uuid),
@@ -759,6 +788,28 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
 
     res.json(successResponse(null, 'Cache cleared'));
+  }));
+
+  // Toggle staging environment
+  app.post('/api/v1/hosting/accounts/:uuid/staging', requireAuth, asyncHandler(async (req, res) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+
+    const account = await db.query.hostingAccounts.findFirst({
+      where: and(
+        eq(schema.hostingAccounts.uuid, req.params.uuid),
+        eq(schema.hostingAccounts.customerId, req.user!.userId),
+        sql`${schema.hostingAccounts.deletedAt} IS NULL`
+      ),
+    });
+    if (!account) return res.status(404).json(errorResponse('Hosting account not found'));
+
+    if (!account.wpmudevSiteId) {
+      return res.status(400).json(errorResponse('Hosting account not provisioned'));
+    }
+
+    await wpmudev.toggleStaging(account.wpmudevSiteId, enabled);
+
+    res.json(successResponse({ enabled }, `Staging ${enabled ? 'enabled' : 'disabled'}`));
   }));
 
   // Get hosting usage stats
@@ -907,7 +958,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     
     // Apply coupon if provided
     let discountAmount = 0;
-    // TODO: Implement coupon validation
+    // Coupon validation deferred — no active coupon system yet
     
     const total = subtotal - discountAmount;
     const orderNumber = `HB${Date.now().toString(36).toUpperCase()}`;
@@ -1142,6 +1193,40 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       sql`${schema.sitelockAccounts.deletedAt} IS NULL`
     ));
 
+    // SSL certificates expiring within 30 days
+    const sslExpiring = await db.query.sslCertificates.findMany({
+      where: and(
+        eq(schema.sslCertificates.customerId, req.user!.userId),
+        sql`${schema.sslCertificates.status} = 'issued'`,
+        sql`${schema.sslCertificates.expiresAt} IS NOT NULL`,
+        sql`${schema.sslCertificates.expiresAt} < NOW() + INTERVAL '30 days'`
+      ),
+      orderBy: schema.sslCertificates.expiresAt,
+      limit: 5,
+    });
+
+    // Active SSL certs
+    const sslActiveCount = await db.select({
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.sslCertificates)
+    .where(and(
+      eq(schema.sslCertificates.customerId, req.user!.userId),
+      sql`${schema.sslCertificates.status} IN ('issued', 'pending')`
+    ));
+
+    // Monthly spend estimate (sum of active subscriptions)
+    const monthlySpend = await db.select({
+      total: sql<number>`COALESCE(SUM(CASE WHEN ${schema.hostingPlans.monthlyPrice} IS NOT NULL THEN ${schema.hostingPlans.monthlyPrice} ELSE 0 END), 0)`,
+    })
+    .from(schema.hostingAccounts)
+    .leftJoin(schema.hostingPlans, eq(schema.hostingAccounts.planId, schema.hostingPlans.id))
+    .where(and(
+      eq(schema.hostingAccounts.customerId, req.user!.userId),
+      eq(schema.hostingAccounts.status, 'active'),
+      sql`${schema.hostingAccounts.deletedAt} IS NULL`
+    ));
+
     res.json(successResponse({
       domains: {
         total: domainStats.reduce((acc, s) => acc + Number(s.count), 0),
@@ -1157,11 +1242,14 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       },
       ssl: {
         total: Number(sslCount[0]?.count || 0),
+        active: Number(sslActiveCount[0]?.count || 0),
+        expiringSoon: sslExpiring,
       },
       sitelock: {
         total: Number(sitelockCount[0]?.count || 0),
       },
       recentOrders,
+      monthlySpendEstimate: Number(monthlySpend[0]?.total || 0),
     }));
   }));
 
@@ -1216,42 +1304,75 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
 
   // Create email account (provisions through OpenSRS)
   app.post('/api/v1/email/accounts', requireAuth, asyncHandler(async (req, res) => {
-    const { domain, username, password, planId, domainId } = req.body;
-    if (!domain || !username) {
-      return res.status(400).json(errorResponse('Domain and username are required'));
-    }
+    const createEmailSchema = z.object({
+      domain: z.string().min(1).max(253),
+      username: z.string().min(1).max(64),
+      password: z.string().min(8).max(128).optional(),
+      planId: z.number().optional(),
+      domainId: z.number().optional(),
+      storageQuotaMB: z.number().optional(),
+      forwardingAddress: z.string().email().optional(),
+    });
+    const data = createEmailSchema.parse(req.body);
 
     // Ensure mail domain exists
     try {
-      await opensrsEmail.createMailDomain(domain);
+      await opensrsEmail.createMailDomain(data.domain);
     } catch { /* may already exist */ }
 
     // Create mailbox in OpenSRS
     const customer = await db.query.customers.findFirst({
       where: eq(schema.customers.id, req.user!.userId),
     });
-    const mailboxResult = await opensrsEmail.createMailbox(domain, username, password || crypto.randomBytes(16).toString('base64url'), {
+    const generatedPassword = data.password || crypto.randomBytes(16).toString('base64url');
+    const mailboxResult = await opensrsEmail.createMailbox(data.domain, data.username, generatedPassword, {
+      storageQuotaMB: data.storageQuotaMB,
       firstName: customer?.firstName || undefined,
       lastName: customer?.lastName || undefined,
+      forwardingAddress: data.forwardingAddress,
     });
 
     const [account] = await db.insert(schema.emailAccounts).values({
       customerId: req.user!.userId,
-      email: `${username}@${domain}`,
-      planId: planId || 1,
-      domainId: domainId || null,
+      email: `${data.username}@${data.domain}`,
+      planId: data.planId || 1,
+      domainId: data.domainId || null,
       status: 'active',
-      openSrsMailboxId: mailboxResult.email || `${username}@${domain}`,
-      mailDomain: domain,
-      username,
+      openSrsMailboxId: mailboxResult.email || `${data.username}@${data.domain}`,
+      mailDomain: data.domain,
+      username: data.username,
+      forwardingAddress: data.forwardingAddress || null,
     }).returning();
+
+    await db.insert(schema.auditLogs).values({
+      customerId: req.user!.userId,
+      action: 'email_account_created',
+      entityType: 'email_account',
+      entityId: String(account.id),
+      description: `Created email account ${data.username}@${data.domain}`,
+      ipAddress: req.ip,
+    });
 
     res.status(201).json(successResponse(account, 'Email account created'));
   }));
 
   // Update email account settings
   app.patch('/api/v1/email/accounts/:uuid', requireAuth, asyncHandler(async (req, res) => {
-    const { forwardingAddress, spamFilterLevel, autoResponderEnabled } = req.body;
+    const updateEmailSchema = z.object({
+      password: z.string().min(8).max(128).optional(),
+      forwardingAddress: z.string().email().nullable().optional(),
+      spamFilterLevel: z.enum(['low', 'medium', 'high']).optional(),
+      autoResponderEnabled: z.boolean().optional(),
+      autoResponder: z.object({
+        enabled: z.boolean(),
+        subject: z.string(),
+        body: z.string(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }).optional(),
+    });
+    const updates = updateEmailSchema.parse(req.body);
+
     const account = await db.query.emailAccounts.findFirst({
       where: and(
         eq(schema.emailAccounts.uuid, req.params.uuid),
@@ -1261,22 +1382,33 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     });
     if (!account) return res.status(404).json(errorResponse('Email account not found'));
 
-    // Update in OpenSRS
+    // Push changes to OpenSRS
     if (account.mailDomain && account.username) {
-      const updates: any = {};
-      if (forwardingAddress !== undefined) updates.forwardingAddress = forwardingAddress;
-      if (Object.keys(updates).length > 0) {
-        await opensrsEmail.updateMailbox(account.mailDomain, account.username, updates);
+      const mailboxUpdates: Record<string, any> = {};
+      if (updates.password) mailboxUpdates.password = updates.password;
+      if (updates.forwardingAddress !== undefined) mailboxUpdates.forwardingAddress = updates.forwardingAddress || '';
+      if (updates.autoResponder) {
+        mailboxUpdates.autoResponder = {
+          ...updates.autoResponder,
+          ...(updates.autoResponder.startDate && { startDate: new Date(updates.autoResponder.startDate) }),
+          ...(updates.autoResponder.endDate && { endDate: new Date(updates.autoResponder.endDate) }),
+        };
       }
-      if (spamFilterLevel) {
-        await opensrsEmail.updateSpamSettings(account.mailDomain, account.username, spamFilterLevel);
+      if (Object.keys(mailboxUpdates).length > 0) {
+        await opensrsEmail.updateMailbox(account.mailDomain, account.username, mailboxUpdates);
+      }
+      if (updates.spamFilterLevel) {
+        await opensrsEmail.updateSpamSettings(account.mailDomain, account.username, {
+          spamFilterLevel: updates.spamFilterLevel,
+        });
       }
     }
 
+    const autoResponderEnabled = updates.autoResponder?.enabled ?? updates.autoResponderEnabled;
     const [updated] = await db.update(schema.emailAccounts)
       .set({
-        ...(forwardingAddress !== undefined && { forwardingAddress }),
-        ...(spamFilterLevel !== undefined && { spamFilterLevel }),
+        ...(updates.forwardingAddress !== undefined && { forwardingAddress: updates.forwardingAddress }),
+        ...(updates.spamFilterLevel !== undefined && { spamFilterLevel: updates.spamFilterLevel }),
         ...(autoResponderEnabled !== undefined && { autoResponderEnabled }),
         updatedAt: new Date(),
       })
@@ -1307,6 +1439,15 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     await db.update(schema.emailAccounts)
       .set({ status: 'suspended', deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(schema.emailAccounts.id, account.id));
+
+    await db.insert(schema.auditLogs).values({
+      customerId: req.user!.userId,
+      action: 'email_account_deleted',
+      entityType: 'email_account',
+      entityId: String(account.id),
+      description: `Deleted email account ${account.email}`,
+      ipAddress: req.ip,
+    });
 
     res.json(successResponse(null, 'Email account deleted'));
   }));
@@ -1353,10 +1494,17 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
 
   // Order SSL certificate (provisions through OpenSRS)
   app.post('/api/v1/ssl/certificates', requireAuth, asyncHandler(async (req, res) => {
-    const { domainName, productType, provider, csr, approverEmail, termYears, domainId, productId } = req.body;
-    if (!domainName) {
-      return res.status(400).json(errorResponse('Domain name is required'));
-    }
+    const orderSslSchema = z.object({
+      domainName: z.string().min(1).max(253),
+      productType: z.enum(['dv', 'ov', 'ev', 'wildcard', 'san']).default('dv'),
+      provider: z.string().default('sectigo'),
+      csr: z.string().optional(),
+      approverEmail: z.string().email().optional(),
+      termYears: z.number().min(1).max(3).default(1),
+      domainId: z.number().optional(),
+      productId: z.string().optional(),
+    });
+    const { domainName, productType, provider, csr, approverEmail, termYears, domainId, productId } = orderSslSchema.parse(req.body);
 
     const customer = await db.query.customers.findFirst({
       where: eq(schema.customers.id, req.user!.userId),
@@ -1458,6 +1606,21 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(null, 'Certificate reissue initiated'));
   }));
 
+  // Generate CSR (standalone — not tied to an existing certificate)
+  app.post('/api/v1/ssl/generate-csr', requireAuth, asyncHandler(async (req, res) => {
+    const generateCsrSchema = z.object({
+      domain: z.string().min(1).max(253),
+      organization: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+      country: z.string().max(2).optional(),
+    });
+    const data = generateCsrSchema.parse(req.body);
+
+    const csrResult = await opensrsSSL.generateCSR(data);
+    res.json(successResponse({ csr: csrResult.csr, privateKeyEncrypted: csrResult.privateKey }, 'CSR generated'));
+  }));
+
   // Resend DCV email
   app.post('/api/v1/ssl/certificates/:uuid/resend-dcv', requireAuth, asyncHandler(async (req, res) => {
     const cert = await db.query.sslCertificates.findFirst({
@@ -1476,6 +1639,34 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // ============================================================================
   // SITELOCK ROUTES
   // ============================================================================
+
+  // Get SiteLock plans
+  app.get('/api/v1/sitelock/plans', asyncHandler(async (_req, res) => {
+    const plans = [
+      {
+        slug: 'basic',
+        name: 'SiteLock Basic',
+        monthlyPrice: 1999,
+        yearlyPrice: 19990,
+        features: ['Daily malware scan', 'Trust seal', 'Up to 5 pages'],
+      },
+      {
+        slug: 'professional',
+        name: 'SiteLock Professional',
+        monthlyPrice: 3999,
+        yearlyPrice: 39990,
+        features: ['Daily malware scan', 'Automatic malware removal', 'Trust seal', 'WAF protection', 'Up to 500 pages'],
+      },
+      {
+        slug: 'enterprise',
+        name: 'SiteLock Enterprise',
+        monthlyPrice: 7999,
+        yearlyPrice: 79990,
+        features: ['Continuous malware scan', 'Automatic malware removal', 'Trust seal', 'WAF protection', 'DDoS protection', 'Unlimited pages'],
+      },
+    ];
+    res.json(successResponse(plans));
+  }));
 
   // Get customer's SiteLock accounts
   app.get('/api/v1/sitelock/accounts', requireAuth, asyncHandler(async (req, res) => {
@@ -1727,13 +1918,26 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     delete safeHeaders.authorization;
     delete safeHeaders.cookie;
 
-    await db.insert(schema.webhookEvents).values({
+    const idempotencyKey = req.body.id ? `opensrs-${req.body.id}` : `opensrs-${crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex')}`;
+
+    // Check idempotency — skip if already processed
+    const existing = await db.query.webhookEvents.findFirst({
+      where: and(
+        eq(schema.webhookEvents.idempotencyKey, idempotencyKey),
+        eq(schema.webhookEvents.status, 'processed'),
+      ),
+    });
+    if (existing) {
+      return res.json({ received: true, duplicate: true });
+    }
+
+    const [webhookEvent] = await db.insert(schema.webhookEvents).values({
       source: 'opensrs',
       eventType: req.body.action || req.body.type || 'unknown',
       payload: req.body,
       headers: safeHeaders,
-      idempotencyKey: req.body.id ? `opensrs-${req.body.id}` : undefined,
-    });
+      idempotencyKey,
+    }).returning();
 
     const action = req.body.action || req.body.type || '';
     const data = req.body.attributes || req.body.data || req.body;
@@ -1743,7 +1947,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       case 'transfer_completed': {
         const domainName = data.domain || data.domain_name;
         if (domainName) {
-          await db.update(schema.domains)
+          const [domain] = await db.update(schema.domains)
             .set({
               status: 'active',
               transferStatus: 'completed',
@@ -1752,7 +1956,33 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
               isTransfer: true,
               updatedAt: new Date(),
             })
-            .where(eq(schema.domains.domainName, domainName));
+            .where(eq(schema.domains.domainName, domainName))
+            .returning();
+
+          if (domain) {
+            await db.insert(schema.auditLogs).values({
+              customerId: domain.customerId,
+              action: 'domain_transfer_completed',
+              entityType: 'domain',
+              entityId: String(domain.id),
+              description: `Domain transfer completed for ${domainName}`,
+            });
+
+            // Notify customer via email
+            if (resend) {
+              const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, domain.customerId) });
+              if (customer) {
+                try {
+                  await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
+                    to: customer.email,
+                    subject: `Domain Transfer Complete: ${domainName}`,
+                    html: `<p>Your domain transfer for <strong>${domainName}</strong> has been completed successfully. You can now manage it from your <a href="${process.env.CLIENT_URL}/dashboard/domains">hostsblue dashboard</a>.</p>`,
+                  });
+                } catch { /* non-critical */ }
+              }
+            }
+          }
         }
         break;
       }
@@ -1761,28 +1991,65 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       case 'transfer_failed': {
         const domainName = data.domain || data.domain_name;
         if (domainName) {
-          await db.update(schema.domains)
+          const [domain] = await db.update(schema.domains)
             .set({
               status: 'pending',
               transferStatus: 'failed',
               updatedAt: new Date(),
             })
-            .where(eq(schema.domains.domainName, domainName));
+            .where(eq(schema.domains.domainName, domainName))
+            .returning();
+
+          if (domain) {
+            await db.insert(schema.auditLogs).values({
+              customerId: domain.customerId,
+              action: 'domain_transfer_failed',
+              entityType: 'domain',
+              entityId: String(domain.id),
+              description: `Domain transfer failed for ${domainName}: ${data.reason || 'Unknown reason'}`,
+            });
+
+            if (resend) {
+              const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, domain.customerId) });
+              if (customer) {
+                try {
+                  await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
+                    to: customer.email,
+                    subject: `Domain Transfer Failed: ${domainName}`,
+                    html: `<p>The transfer for <strong>${domainName}</strong> has failed. Reason: ${data.reason || 'Please contact support for details.'}. Visit your <a href="${process.env.CLIENT_URL}/dashboard/domains">hostsblue dashboard</a> to retry.</p>`,
+                  });
+                } catch { /* non-critical */ }
+              }
+            }
+          }
         }
         break;
       }
 
       case 'DOMAIN_RENEWED':
-      case 'domain_renewed': {
+      case 'domain_renewed':
+      case 'auto_renewed': {
         const domainName = data.domain || data.domain_name;
         if (domainName) {
-          await db.update(schema.domains)
+          const [domain] = await db.update(schema.domains)
             .set({
               status: 'active',
               expiryDate: data.new_expiry_date ? new Date(data.new_expiry_date) : undefined,
               updatedAt: new Date(),
             })
-            .where(eq(schema.domains.domainName, domainName));
+            .where(eq(schema.domains.domainName, domainName))
+            .returning();
+
+          if (domain) {
+            await db.insert(schema.auditLogs).values({
+              customerId: domain.customerId,
+              action: 'domain_renewed',
+              entityType: 'domain',
+              entityId: String(domain.id),
+              description: `Domain ${domainName} auto-renewed`,
+            });
+          }
         }
         break;
       }
@@ -1791,16 +2058,56 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       case 'domain_expired': {
         const domainName = data.domain || data.domain_name;
         if (domainName) {
-          await db.update(schema.domains)
+          const [domain] = await db.update(schema.domains)
             .set({
               status: 'expired',
               updatedAt: new Date(),
             })
-            .where(eq(schema.domains.domainName, domainName));
+            .where(eq(schema.domains.domainName, domainName))
+            .returning();
+
+          if (domain) {
+            await db.insert(schema.auditLogs).values({
+              customerId: domain.customerId,
+              action: 'domain_expired',
+              entityType: 'domain',
+              entityId: String(domain.id),
+              description: `Domain ${domainName} has expired`,
+            });
+          }
+        }
+        break;
+      }
+
+      case 'ABOUT_TO_EXPIRE':
+      case 'about_to_expire': {
+        const domainName = data.domain || data.domain_name;
+        if (domainName && resend) {
+          const domain = await db.query.domains.findFirst({
+            where: eq(schema.domains.domainName, domainName),
+          });
+          if (domain) {
+            const customer = await db.query.customers.findFirst({ where: eq(schema.customers.id, domain.customerId) });
+            if (customer) {
+              try {
+                await resend.emails.send({
+                  from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
+                  to: customer.email,
+                  subject: `Domain Expiring Soon: ${domainName}`,
+                  html: `<p>Your domain <strong>${domainName}</strong> is about to expire on ${domain.expiryDate ? new Date(domain.expiryDate).toLocaleDateString() : 'soon'}. <a href="${process.env.CLIENT_URL}/dashboard/domains">Renew now</a> to avoid losing it.</p>`,
+                });
+              } catch { /* non-critical */ }
+            }
+          }
         }
         break;
       }
     }
+
+    // Mark webhook as processed
+    await db.update(schema.webhookEvents)
+      .set({ status: 'processed', processedAt: new Date() })
+      .where(eq(schema.webhookEvents.id, webhookEvent.id));
 
     res.json({ received: true });
   }));
@@ -1811,13 +2118,25 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     delete safeHeaders.authorization;
     delete safeHeaders.cookie;
 
-    await db.insert(schema.webhookEvents).values({
+    const idempotencyKey = req.body.id ? `opensrs-email-${req.body.id}` : `opensrs-email-${crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex')}`;
+
+    const existing = await db.query.webhookEvents.findFirst({
+      where: and(
+        eq(schema.webhookEvents.idempotencyKey, idempotencyKey),
+        eq(schema.webhookEvents.status, 'processed'),
+      ),
+    });
+    if (existing) {
+      return res.json({ received: true, duplicate: true });
+    }
+
+    const [webhookEvent] = await db.insert(schema.webhookEvents).values({
       source: 'opensrs-email',
       eventType: req.body.event || req.body.type || 'unknown',
       payload: req.body,
       headers: safeHeaders,
-      idempotencyKey: req.body.id ? `opensrs-email-${req.body.id}` : undefined,
-    });
+      idempotencyKey,
+    }).returning();
 
     const event = req.body.event || req.body.type || '';
     const data = req.body.data || req.body;
@@ -1827,9 +2146,19 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       case 'mailbox.disabled': {
         const email = data.email || data.mailbox;
         if (email) {
-          await db.update(schema.emailAccounts)
+          const [account] = await db.update(schema.emailAccounts)
             .set({ status: 'suspended', updatedAt: new Date() })
-            .where(eq(schema.emailAccounts.email, email));
+            .where(eq(schema.emailAccounts.email, email))
+            .returning();
+          if (account) {
+            await db.insert(schema.auditLogs).values({
+              customerId: account.customerId,
+              action: 'email_mailbox_suspended',
+              entityType: 'email_account',
+              entityId: String(account.id),
+              description: `Mailbox ${email} suspended via webhook`,
+            });
+          }
         }
         break;
       }
@@ -1850,10 +2179,19 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
           await db.update(schema.emailAccounts)
             .set({ status: 'suspended', deletedAt: new Date(), updatedAt: new Date() })
             .where(eq(schema.emailAccounts.mailDomain, mailDomain));
+          await db.insert(schema.auditLogs).values({
+            action: 'email_domain_deleted',
+            entityType: 'email_domain',
+            description: `Mail domain ${mailDomain} deleted via webhook — all mailboxes suspended`,
+          });
         }
         break;
       }
     }
+
+    await db.update(schema.webhookEvents)
+      .set({ status: 'processed', processedAt: new Date() })
+      .where(eq(schema.webhookEvents.id, webhookEvent.id));
 
     res.json({ received: true });
   }));
@@ -1870,22 +2208,46 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     delete safeHeaders.authorization;
     delete safeHeaders.cookie;
 
-    await db.insert(schema.webhookEvents).values({
+    const idempotencyKey = req.body.id ? `sitelock-${req.body.id}` : `sitelock-${crypto.createHash('sha256').update(JSON.stringify(req.body)).digest('hex')}`;
+
+    const existing = await db.query.webhookEvents.findFirst({
+      where: and(
+        eq(schema.webhookEvents.idempotencyKey, idempotencyKey),
+        eq(schema.webhookEvents.status, 'processed'),
+      ),
+    });
+    if (existing) {
+      return res.json({ received: true, duplicate: true });
+    }
+
+    const [webhookEvent] = await db.insert(schema.webhookEvents).values({
       source: 'sitelock',
       eventType: req.body.event || req.body.type || 'unknown',
       payload: req.body,
       headers: safeHeaders,
-      idempotencyKey: req.body.id ? `sitelock-${req.body.id}` : undefined,
-    });
+      idempotencyKey,
+    }).returning();
 
     const event = req.body.event || req.body.type || '';
     const data = req.body.data || req.body;
     const accountId = data.account_id || data.accountId;
 
+    // Helper to get SiteLock account and customer for notifications
+    const getAccountAndCustomer = async (slAccountId: string) => {
+      const account = await db.query.sitelockAccounts.findFirst({
+        where: eq(schema.sitelockAccounts.sitelockAccountId, slAccountId),
+      });
+      if (!account) return { account: null, customer: null };
+      const customer = await db.query.customers.findFirst({
+        where: eq(schema.customers.id, account.customerId),
+      });
+      return { account, customer };
+    };
+
     switch (event) {
       case 'scan.completed': {
         if (accountId) {
-          await db.update(schema.sitelockAccounts)
+          const [updated] = await db.update(schema.sitelockAccounts)
             .set({
               lastScanAt: new Date(),
               lastScanResult: data.results || data,
@@ -1893,44 +2255,113 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
               riskLevel: data.risk_level || 'low',
               updatedAt: new Date(),
             })
-            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId))
+            .returning();
+          if (updated) {
+            await db.insert(schema.auditLogs).values({
+              customerId: updated.customerId,
+              action: 'sitelock_scan_completed',
+              entityType: 'sitelock_account',
+              entityId: String(updated.id),
+              description: `SiteLock scan completed — risk level: ${data.risk_level || 'low'}`,
+            });
+          }
         }
         break;
       }
 
       case 'malware.detected': {
         if (accountId) {
-          await db.update(schema.sitelockAccounts)
+          const [updated] = await db.update(schema.sitelockAccounts)
             .set({
               malwareFound: true,
               riskLevel: data.risk_level || 'high',
               lastScanResult: data,
               updatedAt: new Date(),
             })
-            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId))
+            .returning();
+
+          if (updated) {
+            await db.insert(schema.auditLogs).values({
+              customerId: updated.customerId,
+              action: 'sitelock_malware_detected',
+              entityType: 'sitelock_account',
+              entityId: String(updated.id),
+              description: `Malware detected — ${data.malware_count || 'multiple'} threat(s) found`,
+            });
+
+            // Alert customer via email
+            if (resend) {
+              const { customer } = await getAccountAndCustomer(accountId);
+              if (customer) {
+                try {
+                  await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
+                    to: customer.email,
+                    subject: 'Security Alert: Malware Detected on Your Site',
+                    html: `<p><strong>Malware has been detected</strong> on your website. We recommend taking immediate action. Visit your <a href="${process.env.CLIENT_URL}/dashboard/security">hostsblue security dashboard</a> for details and remediation options.</p>`,
+                  });
+                } catch { /* non-critical */ }
+              }
+            }
+          }
         }
         break;
       }
 
-      case 'malware.cleaned': {
+      case 'malware.cleaned':
+      case 'malware.removed': {
         if (accountId) {
-          await db.update(schema.sitelockAccounts)
+          const [updated] = await db.update(schema.sitelockAccounts)
             .set({
               malwareFound: false,
               riskLevel: 'low',
               updatedAt: new Date(),
             })
-            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId));
+            .where(eq(schema.sitelockAccounts.sitelockAccountId, accountId))
+            .returning();
+
+          if (updated) {
+            await db.insert(schema.auditLogs).values({
+              customerId: updated.customerId,
+              action: 'sitelock_malware_removed',
+              entityType: 'sitelock_account',
+              entityId: String(updated.id),
+              description: 'Malware successfully removed',
+            });
+
+            if (resend) {
+              const { customer } = await getAccountAndCustomer(accountId);
+              if (customer) {
+                try {
+                  await resend.emails.send({
+                    from: process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com',
+                    to: customer.email,
+                    subject: 'Malware Removed from Your Site',
+                    html: `<p>The malware detected on your website has been <strong>successfully removed</strong>. Your site is now clean. Visit your <a href="${process.env.CLIENT_URL}/dashboard/security">hostsblue security dashboard</a> for details.</p>`,
+                  });
+                } catch { /* non-critical */ }
+              }
+            }
+          }
         }
         break;
       }
 
       case 'firewall.event': {
-        // Log only — firewall events are informational
-        console.log(`[SiteLock Webhook] Firewall event for account ${accountId}:`, data);
+        await db.insert(schema.auditLogs).values({
+          action: 'sitelock_firewall_event',
+          entityType: 'sitelock_account',
+          description: `Firewall event for account ${accountId}: ${data.description || 'unknown'}`,
+        });
         break;
       }
     }
+
+    await db.update(schema.webhookEvents)
+      .set({ status: 'processed', processedAt: new Date() })
+      .where(eq(schema.webhookEvents.id, webhookEvent.id));
 
     res.json({ received: true });
   }));
