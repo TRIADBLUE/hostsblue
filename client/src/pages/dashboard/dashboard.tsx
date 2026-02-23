@@ -10,7 +10,8 @@ import {
   Mail,
   ShieldCheck,
   Shield,
-  Palette
+  Palette,
+  DollarSign,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -75,23 +76,26 @@ export function DashboardPage() {
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-[#064A6C]" />
+              <Mail className="w-5 h-5 text-[#064A6C]" />
             </div>
+            <span className="badge badge-neutral">{stats?.email?.total || 0} Total</span>
           </div>
           <h3 className="text-3xl font-bold text-gray-900 mb-1">
-            {stats?.recentOrders?.length || 0}
+            {stats?.email?.total || 0}
           </h3>
-          <p className="text-gray-500 text-sm">Recent Orders</p>
+          <p className="text-gray-500 text-sm">Email Accounts</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-              <Mail className="w-5 h-5 text-[#064A6C]" />
+              <DollarSign className="w-5 h-5 text-[#064A6C]" />
             </div>
           </div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-1">0</h3>
-          <p className="text-gray-500 text-sm">Email Accounts</p>
+          <h3 className="text-3xl font-bold text-gray-900 mb-1">
+            ${((stats?.monthlySpendEstimate || 0) / 100).toFixed(2)}
+          </h3>
+          <p className="text-gray-500 text-sm">Est. Monthly Spend</p>
         </div>
       </div>
 
@@ -102,9 +106,20 @@ export function DashboardPage() {
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
               <ShieldCheck className="w-5 h-5 text-[#064A6C]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">SSL Certificates</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">SSL Certificates</h3>
+              <p className="text-xs text-gray-500">{stats?.ssl?.active || 0} active of {stats?.ssl?.total || 0}</p>
+            </div>
           </div>
           <p className="text-gray-500 text-sm">Manage your SSL certificates and security</p>
+          {stats?.ssl?.expiringSoon?.length > 0 && (
+            <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 text-yellow-700 text-xs">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{stats.ssl.expiringSoon.length} certificate(s) expiring soon</span>
+              </div>
+            </div>
+          )}
           <span className="text-[#064A6C] text-sm mt-3 btn-arrow-hover">
             View SSL
           </span>
@@ -115,7 +130,10 @@ export function DashboardPage() {
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
               <Shield className="w-5 h-5 text-[#064A6C]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">SiteLock</h3>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">SiteLock</h3>
+              <p className="text-xs text-gray-500">{stats?.sitelock?.total || 0} active</p>
+            </div>
           </div>
           <p className="text-gray-500 text-sm">Website security scanning and malware protection</p>
           <span className="text-[#064A6C] text-sm mt-3 btn-arrow-hover">

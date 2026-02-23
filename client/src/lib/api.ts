@@ -81,12 +81,32 @@ export const domainApi = {
   getDomains: () => fetchApi<any[]>('/domains'),
   getDomain: (uuid: string) => fetchApi<any>(`/domains/${uuid}`),
   updateDomain: (uuid: string, data: any) => fetchApi<any>(`/domains/${uuid}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  // DNS management
+  getDnsRecords: (uuid: string) => fetchApi<any[]>(`/domains/${uuid}/dns`),
+  createDnsRecord: (uuid: string, data: { type: string; name: string; content: string; ttl?: number; priority?: number }) =>
+    fetchApi<any>(`/domains/${uuid}/dns`, { method: 'POST', body: JSON.stringify(data) }),
+  updateDnsRecord: (uuid: string, recordId: string, data: { content?: string; ttl?: number; priority?: number }) =>
+    fetchApi<any>(`/domains/${uuid}/dns/${recordId}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteDnsRecord: (uuid: string, recordId: string) =>
+    fetchApi<void>(`/domains/${uuid}/dns/${recordId}`, { method: 'DELETE' }),
+  syncDns: (uuid: string) =>
+    fetchApi<any>(`/domains/${uuid}/dns/sync`, { method: 'POST' }),
 };
 
 export const hostingApi = {
   getPlans: () => fetchApi<any[]>('/hosting/plans'),
   getAccounts: () => fetchApi<any[]>('/hosting/accounts'),
   getAccount: (uuid: string) => fetchApi<any>(`/hosting/accounts/${uuid}`),
+  createBackup: (uuid: string) =>
+    fetchApi<any>(`/hosting/accounts/${uuid}/backup`, { method: 'POST' }),
+  getBackups: (uuid: string) => fetchApi<any[]>(`/hosting/accounts/${uuid}/backups`),
+  restoreBackup: (uuid: string, backupId: string) =>
+    fetchApi<any>(`/hosting/accounts/${uuid}/restore/${backupId}`, { method: 'POST' }),
+  clearCache: (uuid: string) =>
+    fetchApi<any>(`/hosting/accounts/${uuid}/cache`, { method: 'DELETE' }),
+  createStaging: (uuid: string, enabled: boolean) =>
+    fetchApi<any>(`/hosting/accounts/${uuid}/staging`, { method: 'POST', body: JSON.stringify({ enabled }) }),
+  getStats: (uuid: string) => fetchApi<any>(`/hosting/accounts/${uuid}/stats`),
 };
 
 export const orderApi = {
@@ -103,19 +123,38 @@ export const dashboardApi = {
 export const emailApi = {
   getPlans: () => fetchApi<any[]>('/email/plans'),
   getAccounts: () => fetchApi<any[]>('/email/accounts'),
+  getAccount: (uuid: string) => fetchApi<any>(`/email/accounts/${uuid}`),
   createAccount: (data: any) => fetchApi<any>('/email/accounts', { method: 'POST', body: JSON.stringify(data) }),
-  deleteAccount: (id: number) => fetchApi<void>(`/email/accounts/${id}`, { method: 'DELETE' }),
+  updateAccount: (uuid: string, data: any) =>
+    fetchApi<any>(`/email/accounts/${uuid}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteAccount: (uuid: string) => fetchApi<void>(`/email/accounts/${uuid}`, { method: 'DELETE' }),
 };
 
 export const sslApi = {
+  getProducts: () => fetchApi<any[]>('/ssl/products'),
   getCertificates: () => fetchApi<any[]>('/ssl/certificates'),
+  getCertificate: (uuid: string) => fetchApi<any>(`/ssl/certificates/${uuid}`),
   createCertificate: (data: any) => fetchApi<any>('/ssl/certificates', { method: 'POST', body: JSON.stringify(data) }),
-  renewCertificate: (id: number) => fetchApi<any>(`/ssl/certificates/${id}/renew`, { method: 'POST' }),
+  generateCsr: (uuid: string, data?: { commonName?: string; organization?: string; country?: string; state?: string; locality?: string }) =>
+    fetchApi<any>(`/ssl/certificates/${uuid}/generate-csr`, { method: 'POST', body: JSON.stringify(data || {}) }),
+  generateStandaloneCsr: (data: { domain: string; organization?: string; city?: string; state?: string; country?: string }) =>
+    fetchApi<any>('/ssl/generate-csr', { method: 'POST', body: JSON.stringify(data) }),
+  reissueCertificate: (uuid: string, newCsr: string) =>
+    fetchApi<any>(`/ssl/certificates/${uuid}/reissue`, { method: 'POST', body: JSON.stringify({ newCsr }) }),
+  resendDcv: (uuid: string) =>
+    fetchApi<any>(`/ssl/certificates/${uuid}/resend-dcv`, { method: 'POST' }),
 };
 
 export const sitelockApi = {
+  getPlans: () => fetchApi<any[]>('/sitelock/plans'),
   getAccounts: () => fetchApi<any[]>('/sitelock/accounts'),
-  triggerScan: (id: number) => fetchApi<any>(`/sitelock/accounts/${id}/scan`, { method: 'POST' }),
+  getAccount: (uuid: string) => fetchApi<any>(`/sitelock/accounts/${uuid}`),
+  triggerScan: (uuid: string) =>
+    fetchApi<any>(`/sitelock/accounts/${uuid}/scan`, { method: 'POST' }),
+  getSeal: (uuid: string) => fetchApi<any>(`/sitelock/accounts/${uuid}/seal`),
+  getFirewall: (uuid: string) => fetchApi<any>(`/sitelock/accounts/${uuid}/firewall`),
+  toggleFirewall: (uuid: string, enabled: boolean) =>
+    fetchApi<any>(`/sitelock/accounts/${uuid}/firewall`, { method: 'POST', body: JSON.stringify({ enabled }) }),
 };
 
 export const websiteBuilderApi = {

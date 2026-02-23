@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { Check, ChevronDown, Mail, ArrowRight } from 'lucide-react';
+import type { CartItem } from '@/hooks/use-cart';
+
+interface CartContext {
+  addItem: (item: Omit<CartItem, 'id'>) => void;
+  openCart: () => void;
+}
 
 const emailPlans = [
   {
@@ -92,12 +98,31 @@ const faqs = [
 export function EmailPlansPage() {
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const cart = useOutletContext<CartContext>();
 
   const getPrice = (monthly: number) => {
     if (billing === 'annual') {
       return (monthly * 0.8).toFixed(2);
     }
     return monthly.toFixed(2);
+  };
+
+  const getPriceInCents = (monthly: number) => {
+    const price = billing === 'annual' ? monthly * 0.8 : monthly;
+    return Math.round(price * 100);
+  };
+
+  const addEmailToCart = (plan: typeof emailPlans[0]) => {
+    const termMonths = billing === 'annual' ? 12 : 1;
+    cart.addItem({
+      type: 'email_service',
+      name: `${plan.name} Email`,
+      description: `${plan.name} Email — ${plan.mailboxes} mailbox${plan.mailboxes > 1 ? 'es' : ''}, ${plan.storage} each`,
+      price: getPriceInCents(plan.monthly) * (billing === 'annual' ? 12 : 1),
+      termMonths,
+      configuration: { planSlug: plan.name.toLowerCase(), billing, mailboxes: plan.mailboxes },
+    });
+    cart.openCart();
   };
 
   return (
@@ -189,16 +214,16 @@ export function EmailPlansPage() {
               ))}
             </ul>
 
-            <Link
-              to="/register"
-              className={`block text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
+            <button
+              onClick={() => addEmailToCart(plan)}
+              className={`block w-full text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
                 plan.popular
                   ? 'bg-[#064A6C] hover:bg-[#053A55] text-white'
                   : 'border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]'
               }`}
             >
               Get Started
-            </Link>
+            </button>
           </div>
         ))}
       </div>

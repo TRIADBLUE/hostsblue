@@ -1,12 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { orderApi } from '@/lib/api';
-import { CreditCard, Loader2, ExternalLink, Receipt } from 'lucide-react';
+import { orderApi, dashboardApi } from '@/lib/api';
+import { CreditCard, Loader2, ExternalLink, Receipt, DollarSign, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function BillingPage() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: orderApi.getOrders,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['dashboard', 'stats'],
+    queryFn: dashboardApi.getStats,
   });
 
   if (isLoading) {
@@ -23,7 +28,7 @@ export function BillingPage() {
         return <span className="badge badge-success">{status}</span>;
       case 'pending_payment':
       case 'processing':
-        return <span className="badge badge-warning">{status}</span>;
+        return <span className="badge badge-warning">{status.replace('_', ' ')}</span>;
       case 'failed':
       case 'cancelled':
         return <span className="badge badge-error">{status}</span>;
@@ -31,6 +36,9 @@ export function BillingPage() {
         return <span className="badge badge-neutral">{status}</span>;
     }
   };
+
+  const totalSpent = orders?.reduce((sum: number, o: any) => o.status === 'completed' ? sum + (o.total || 0) : sum, 0) || 0;
+  const pendingOrders = orders?.filter((o: any) => o.status === 'pending_payment') || [];
 
   return (
     <div className="space-y-6">
@@ -47,25 +55,25 @@ export function BillingPage() {
         <div className="bg-white border border-gray-200 rounded-[7px] p-6">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-              <Receipt className="w-5 h-5 text-[#064A6C]" />
+              <DollarSign className="w-5 h-5 text-[#064A6C]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Total Orders</h3>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{orders?.length || 0}</p>
-          <p className="text-gray-500 text-sm mt-1">Lifetime orders</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-[7px] p-6">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-[#064A6C]" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Active Subscriptions</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Monthly Estimate</h3>
           </div>
           <p className="text-3xl font-bold text-gray-900">
-            {orders?.filter((o: any) => o.status === 'completed').length || 0}
+            ${((stats?.monthlySpendEstimate || 0) / 100).toFixed(2)}
           </p>
-          <p className="text-gray-500 text-sm mt-1">Completed orders</p>
+          <p className="text-gray-500 text-sm mt-1">Active services</p>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-[7px] p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-[#064A6C]" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Total Spent</h3>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">${(totalSpent / 100).toFixed(2)}</p>
+          <p className="text-gray-500 text-sm mt-1">Across {orders?.filter((o: any) => o.status === 'completed').length || 0} completed orders</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-[7px] p-6">
@@ -73,17 +81,37 @@ export function BillingPage() {
             <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
               <CreditCard className="w-5 h-5 text-[#064A6C]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Payment Methods</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Payment Method</h3>
           </div>
-          <p className="text-gray-500 text-sm">No payment methods saved</p>
-          <button
-            onClick={() => alert('Redirecting to payment portal...')}
-            className="text-[#064A6C] hover:text-[#053A55] text-sm mt-3 font-medium"
-          >
-            Add Payment Method
-          </button>
+          <p className="text-gray-500 text-sm">Payments are processed securely via SwipesBlue at checkout.</p>
         </div>
       </div>
+
+      {/* Pending Payments */}
+      {pendingOrders.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-[7px] p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Pending Payments</h2>
+          <div className="space-y-3">
+            {pendingOrders.map((order: any) => (
+              <div key={order.id} className="flex items-center justify-between p-4 bg-white border border-yellow-200 rounded-[7px]">
+                <div>
+                  <span className="text-gray-900 font-mono font-medium">{order.orderNumber}</span>
+                  <p className="text-sm text-gray-500 mt-0.5">{new Date(order.createdAt).toLocaleDateString()} — {order.items?.length || 0} item(s)</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-900 font-semibold">${(order.total / 100).toFixed(2)}</span>
+                  <Link
+                    to={`/checkout?order=${order.uuid}`}
+                    className="bg-[#064A6C] hover:bg-[#053A55] text-white text-sm font-medium px-4 py-2 rounded-[7px] transition-colors"
+                  >
+                    Pay Now
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Payment History */}
       <div className="bg-white border border-gray-200 rounded-[7px] p-6">
@@ -101,14 +129,13 @@ export function BillingPage() {
                 <tr className="text-left border-b border-gray-200">
                   <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Order #</th>
                   <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Date</th>
-                  <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Description</th>
+                  <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Items</th>
                   <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Amount</th>
                   <th className="pb-3 pt-1 font-medium text-gray-500 text-sm">Status</th>
-                  <th className="pb-3 pt-1 font-medium text-gray-500 text-sm"></th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order: any) => (
+                {orders.slice(0, 10).map((order: any) => (
                   <tr key={order.id} className="border-b border-gray-100 last:border-0">
                     <td className="py-4">
                       <span className="text-gray-900 font-mono text-sm">{order.orderNumber}</span>
@@ -124,15 +151,6 @@ export function BillingPage() {
                     </td>
                     <td className="py-4">
                       {getStatusBadge(order.status)}
-                    </td>
-                    <td className="py-4">
-                      <Link
-                        to={`/dashboard/orders/${order.uuid}`}
-                        className="text-[#064A6C] hover:text-[#053A55] flex items-center gap-1 text-sm"
-                      >
-                        View
-                        <ExternalLink className="w-3 h-3" />
-                      </Link>
                     </td>
                   </tr>
                 ))}

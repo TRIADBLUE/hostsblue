@@ -137,6 +137,9 @@ export function SupportPage() {
                   rows={4}
                   className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm resize-none"
                 />
+                {addMessageMutation.isError && (
+                  <p className="text-red-500 text-sm mt-2">Failed to send reply. Please try again.</p>
+                )}
                 <div className="flex justify-end mt-3">
                   <button
                     onClick={() => {
@@ -229,6 +232,9 @@ export function SupportPage() {
                   className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm resize-none"
                 />
               </div>
+              {createTicketMutation.isError && (
+                <p className="text-red-500 text-sm">Failed to create ticket. Please try again.</p>
+              )}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setShowCreateForm(false)}

@@ -1,39 +1,65 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
-import { Settings, Loader2, Save, User, Lock, Bell } from 'lucide-react';
+import { Loader2, Save, User, Lock, Bell } from 'lucide-react';
+
+const NOTIF_STORAGE_KEY = 'hostsblue_notification_prefs';
+
+function loadNotifPrefs() {
+  try {
+    const saved = localStorage.getItem(NOTIF_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {}
+  return { emailNotifications: true, renewalReminders: true, securityAlerts: true, marketingEmails: false };
+}
 
 export function SettingsPage() {
   const { customer } = useAuth();
+  const queryClient = useQueryClient();
 
   const [firstName, setFirstName] = useState(customer?.firstName || '');
   const [lastName, setLastName] = useState(customer?.lastName || '');
-  const [email, setEmail] = useState(customer?.email || '');
-  const [company, setCompany] = useState(customer?.company || '');
+  const [companyName, setCompanyName] = useState(customer?.companyName || '');
   const [phone, setPhone] = useState(customer?.phone || '');
   const [address1, setAddress1] = useState(customer?.address1 || '');
   const [address2, setAddress2] = useState(customer?.address2 || '');
   const [city, setCity] = useState(customer?.city || '');
   const [state, setState] = useState(customer?.state || '');
-  const [zip, setZip] = useState(customer?.zip || '');
-  const [country, setCountry] = useState(customer?.country || '');
+  const [postalCode, setPostalCode] = useState(customer?.postalCode || '');
+  const [countryCode, setCountryCode] = useState(customer?.countryCode || '');
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [renewalReminders, setRenewalReminders] = useState(true);
-  const [securityAlerts, setSecurityAlerts] = useState(true);
-  const [marketingEmails, setMarketingEmails] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState(loadNotifPrefs);
 
   const [profileSaved, setProfileSaved] = useState(false);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [notifSaved, setNotifSaved] = useState(false);
+
+  // Sync form when customer data loads/changes
+  useEffect(() => {
+    if (customer) {
+      setFirstName(customer.firstName || '');
+      setLastName(customer.lastName || '');
+      setCompanyName(customer.companyName || '');
+      setPhone(customer.phone || '');
+      setAddress1(customer.address1 || '');
+      setAddress2(customer.address2 || '');
+      setCity(customer.city || '');
+      setState(customer.state || '');
+      setPostalCode(customer.postalCode || '');
+      setCountryCode(customer.countryCode || '');
+    }
+  }, [customer]);
 
   const profileMutation = useMutation({
     mutationFn: (data: any) => authApi.updateProfile(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
     },
@@ -46,6 +72,7 @@ export function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setPasswordError('');
       setPasswordChanged(true);
       setTimeout(() => setPasswordChanged(false), 3000);
     },
@@ -56,29 +83,37 @@ export function SettingsPage() {
     profileMutation.mutate({
       firstName,
       lastName,
-      email,
-      company,
+      companyName,
       phone,
       address1,
       address2,
       city,
       state,
-      zip,
-      country,
+      postalCode,
+      countryCode,
     });
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError('');
     if (newPassword !== confirmPassword) {
-      alert('New passwords do not match');
+      setPasswordError('New passwords do not match.');
       return;
     }
     if (newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
+      setPasswordError('Password must be at least 8 characters.');
       return;
     }
     passwordMutation.mutate({ currentPassword, newPassword });
+  };
+
+  const updateNotifPref = (key: string, value: boolean) => {
+    const updated = { ...notifPrefs, [key]: value };
+    setNotifPrefs(updated);
+    localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(updated));
+    setNotifSaved(true);
+    setTimeout(() => setNotifSaved(false), 2000);
   };
 
   return (
@@ -95,7 +130,12 @@ export function SettingsPage() {
           <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
             <User className="w-5 h-5 text-[#064A6C]" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+            {customer?.email && (
+              <p className="text-sm text-gray-500">{customer.email}</p>
+            )}
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -118,20 +158,11 @@ export function SettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
-            />
-          </div>
-          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
             <input
               type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
               placeholder="Optional"
               className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
             />
@@ -193,18 +224,20 @@ export function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">ZIP / Postal Code</label>
               <input
                 type="text"
-                value={zip}
-                onChange={(e) => setZip(e.target.value)}
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
                 className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country Code</label>
               <input
                 type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                placeholder="US, CA, GB, etc."
+                maxLength={2}
+                className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm uppercase"
               />
             </div>
           </div>
@@ -272,6 +305,10 @@ export function SettingsPage() {
           </div>
         </div>
 
+        {passwordError && (
+          <p className="text-red-500 text-sm mt-3">{passwordError}</p>
+        )}
+
         <div className="flex items-center gap-3 mt-6">
           <button
             type="submit"
@@ -296,85 +333,42 @@ export function SettingsPage() {
 
       {/* Notification Preferences */}
       <div className="bg-white border border-gray-200 rounded-[7px] p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-            <Bell className="w-5 h-5 text-[#064A6C]" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              <Bell className="w-5 h-5 text-[#064A6C]" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900">Notification Preferences</h2>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900">Notification Preferences</h2>
+          {notifSaved && (
+            <span className="text-green-600 text-sm">Saved</span>
+          )}
         </div>
 
         <div className="space-y-4">
-          <label className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Email Notifications</p>
-              <p className="text-xs text-gray-500">Receive notifications about your account via email</p>
-            </div>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={emailNotifications}
-                onChange={(e) => setEmailNotifications(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setEmailNotifications(!emailNotifications)}>
-                <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${emailNotifications ? 'translate-x-5' : ''}`} />
+          {[
+            { key: 'emailNotifications', label: 'Email Notifications', desc: 'Receive notifications about your account via email' },
+            { key: 'renewalReminders', label: 'Renewal Reminders', desc: 'Get reminded before domains and services expire' },
+            { key: 'securityAlerts', label: 'Security Alerts', desc: 'Be notified about security events and login activity' },
+            { key: 'marketingEmails', label: 'Marketing Emails', desc: 'Receive promotions, tips, and product updates' },
+          ].map(({ key, label, desc }) => (
+            <div key={key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{label}</p>
+                <p className="text-xs text-gray-500">{desc}</p>
               </div>
+              <button
+                onClick={() => updateNotifPref(key, !notifPrefs[key])}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  notifPrefs[key] ? 'bg-[#064A6C]' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                  notifPrefs[key] ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
             </div>
-          </label>
-
-          <label className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Renewal Reminders</p>
-              <p className="text-xs text-gray-500">Get reminded before domains and services expire</p>
-            </div>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={renewalReminders}
-                onChange={(e) => setRenewalReminders(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setRenewalReminders(!renewalReminders)}>
-                <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${renewalReminders ? 'translate-x-5' : ''}`} />
-              </div>
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between py-3 border-b border-gray-100 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Security Alerts</p>
-              <p className="text-xs text-gray-500">Be notified about security events and login activity</p>
-            </div>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={securityAlerts}
-                onChange={(e) => setSecurityAlerts(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setSecurityAlerts(!securityAlerts)}>
-                <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${securityAlerts ? 'translate-x-5' : ''}`} />
-              </div>
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between py-3 cursor-pointer">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Marketing Emails</p>
-              <p className="text-xs text-gray-500">Receive promotions, tips, and product updates</p>
-            </div>
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={marketingEmails}
-                onChange={(e) => setMarketingEmails(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-[#064A6C] rounded-full peer peer-checked:bg-[#064A6C] transition-colors cursor-pointer" onClick={() => setMarketingEmails(!marketingEmails)}>
-                <div className={`absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full shadow transition-transform ${marketingEmails ? 'translate-x-5' : ''}`} />
-              </div>
-            </div>
-          </label>
+          ))}
         </div>
       </div>
     </div>

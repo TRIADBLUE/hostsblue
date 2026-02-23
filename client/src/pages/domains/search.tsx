@@ -1,14 +1,22 @@
 import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { domainApi, orderApi } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { domainApi } from '@/lib/api';
 import { Search, Loader2, Check, X, Globe, ShoppingCart, Shield, ArrowRight, CheckCircle, Lock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
+import type { CartItem } from '@/hooks/use-cart';
+
+interface CartContext {
+  items: CartItem[];
+  itemCount: number;
+  subtotal: number;
+  addItem: (item: Omit<CartItem, 'id'>) => void;
+  openCart: () => void;
+}
 
 export function DomainSearchPage() {
   const [query, setQuery] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [cart, setCart] = useState<Array<{ domain: string; tld: string; price: number }>>([]);
-  const navigate = useNavigate();
+  const cart = useOutletContext<CartContext>();
 
   const { data: searchResults, isLoading } = useQuery({
     queryKey: ['domain-search', searchTerm],
@@ -21,38 +29,30 @@ export function DomainSearchPage() {
     queryFn: domainApi.getTlds,
   });
 
-  const createOrderMutation = useMutation({
-    mutationFn: () => {
-      const items = cart.map(item => ({
-        type: 'domain_registration' as const,
-        domain: item.domain.replace(item.tld, ''),
-        tld: item.tld,
-        termYears: 1,
-      }));
-      return orderApi.createOrder({ items });
-    },
-    onSuccess: (data) => {
-      navigate(`/checkout?order=${data.order.uuid}`);
-    },
-  });
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanQuery = query.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const cleanQuery = query.toLowerCase().replace(/[^a-z0-9.-]/g, '');
     setSearchTerm(cleanQuery);
   };
 
-  const addToCart = (domain: string, tld: string, price: number) => {
-    if (!cart.find(item => item.domain === domain && item.tld === tld)) {
-      setCart([...cart, { domain, tld, price }]);
-    }
-  };
+  const isInCart = (domain: string, tld: string) =>
+    cart.items.some(item =>
+      item.type === 'domain_registration' &&
+      item.configuration?.domain === domain.replace(tld, '') &&
+      item.configuration?.tld === tld
+    );
 
-  const removeFromCart = (index: number) => {
-    setCart(cart.filter((_, i) => i !== index));
+  const addDomainToCart = (domain: string, tld: string, price: number) => {
+    const sld = domain.replace(tld, '');
+    cart.addItem({
+      type: 'domain_registration',
+      name: domain,
+      description: `${domain} — 1 year registration`,
+      price,
+      termMonths: 12,
+      configuration: { domain: sld, tld, sld },
+    });
   };
-
-  const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -91,132 +91,82 @@ export function DomainSearchPage() {
         </div>
       </form>
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Results */}
-        <div className="lg:col-span-2">
-          {searchResults?.results && (
-            <div className="space-y-3">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      {/* Results */}
+      {searchResults?.results && (
+        <div className="max-w-3xl mx-auto mb-12">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
                 Results for "{searchResults.query}"
               </h2>
-              {searchResults.results.map((result: any) => {
-                const isInCart = cart.some(item => item.domain === result.domain && item.tld === result.tld);
-                return (
-                  <div
-                    key={result.domain}
-                    className="bg-white border border-gray-200 rounded-[7px] p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                        result.available ? 'bg-green-50' : 'bg-red-50'
-                      }`}>
-                        {result.available ? (
-                          <Check className="w-5 h-5 text-green-500" />
-                        ) : (
-                          <X className="w-5 h-5 text-red-500" />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-gray-900 font-medium">{result.domain}</h3>
-                        <p className="text-sm text-gray-500">
-                          {result.available ? 'Available' : 'Not available'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {result.available && (
-                        <>
-                          <span className="text-gray-900 font-semibold">
-                            ${(result.price / 100).toFixed(2)}/yr
-                          </span>
-                          <button
-                            onClick={() => addToCart(result.domain, result.tld, result.price)}
-                            disabled={isInCart}
-                            className={`px-4 py-2 rounded-[7px] text-sm font-medium transition-colors ${
-                              isInCart
-                                ? 'bg-green-50 text-green-600 cursor-default'
-                                : 'bg-[#064A6C] hover:bg-[#053A55] text-white'
-                            }`}
-                          >
-                            {isInCart ? 'In Cart' : 'Add to Cart'}
-                          </button>
-                        </>
+              {cart.itemCount > 0 && (
+                <button
+                  onClick={cart.openCart}
+                  className="flex items-center gap-2 text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  View Cart ({cart.itemCount})
+                </button>
+              )}
+            </div>
+            {searchResults.results.map((result: any) => {
+              const inCart = isInCart(result.domain, result.tld);
+              return (
+                <div
+                  key={result.domain}
+                  className="bg-white border border-gray-200 rounded-[7px] p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      result.available ? 'bg-green-50' : 'bg-red-50'
+                    }`}>
+                      {result.available ? (
+                        <Check className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <X className="w-5 h-5 text-red-500" />
                       )}
                     </div>
+                    <div>
+                      <h3 className="text-gray-900 font-medium">{result.domain}</h3>
+                      <p className="text-sm text-gray-500">
+                        {result.available ? 'Available' : 'Not available'}
+                      </p>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-
-          {searchResults?.results?.length === 0 && (
-            <div className="bg-white border border-gray-200 rounded-[7px] text-center py-12">
-              <p className="text-gray-500">No results found. Try a different search term.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Cart */}
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-gray-200 rounded-[7px] p-6 sticky top-24">
-            <div className="flex items-center gap-2 mb-4">
-              <ShoppingCart className="w-5 h-5 text-[#064A6C]" />
-              <h2 className="text-lg font-semibold text-gray-900">Your Cart</h2>
-              <span className="ml-auto text-xs font-medium bg-gray-100 text-gray-600 px-2 py-1 rounded-full">{cart.length} items</span>
-            </div>
-
-            {cart.length > 0 ? (
-              <>
-                <div className="space-y-3 mb-6">
-                  {cart.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200">
-                      <div>
-                        <p className="text-gray-900 text-sm">{item.domain}</p>
-                        <p className="text-gray-500 text-xs">1 year registration</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-gray-900 text-sm">
-                          ${(item.price / 100).toFixed(2)}
+                  <div className="flex items-center gap-4">
+                    {result.available && (
+                      <>
+                        <span className="text-gray-900 font-semibold">
+                          ${(result.price / 100).toFixed(2)}/yr
                         </span>
                         <button
-                          onClick={() => removeFromCart(index)}
-                          className="text-gray-400 hover:text-red-500 transition-colors"
+                          onClick={() => addDomainToCart(result.domain, result.tld, result.price)}
+                          disabled={inCart}
+                          className={`px-4 py-2 rounded-[7px] text-sm font-medium transition-colors ${
+                            inCart
+                              ? 'bg-green-50 text-green-600 cursor-default'
+                              : 'bg-[#064A6C] hover:bg-[#053A55] text-white'
+                          }`}
                         >
-                          <X className="w-4 h-4" />
+                          {inCart ? 'In Cart' : 'Add to Cart'}
                         </button>
-                      </div>
-                    </div>
-                  ))}
+                      </>
+                    )}
+                  </div>
                 </div>
-
-                <div className="flex items-center justify-between py-4 border-t border-gray-200">
-                  <span className="text-gray-900 font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-gray-900">
-                    ${(cartTotal / 100).toFixed(2)}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => createOrderMutation.mutate()}
-                  disabled={createOrderMutation.isPending}
-                  className="w-full bg-[#064A6C] hover:bg-[#053A55] text-white font-medium py-3 rounded-[7px] transition-colors mt-4"
-                >
-                  {createOrderMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    'Proceed to Checkout'
-                  )}
-                </button>
-              </>
-            ) : (
-              <p className="text-gray-500 text-center py-8">Your cart is empty</p>
-            )}
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
+
+      {searchResults?.results?.length === 0 && (
+        <div className="max-w-3xl mx-auto mb-12">
+          <div className="bg-white border border-gray-200 rounded-[7px] text-center py-12">
+            <p className="text-gray-500">No results found. Try a different search term.</p>
+          </div>
+        </div>
+      )}
 
       {/* Divider */}
       <hr className="section-divider" />
@@ -278,12 +228,12 @@ export function DomainSearchPage() {
             <p className="text-sm text-gray-500">Start transfer</p>
           </div>
         </div>
-        <a
-          href="/register"
+        <Link
+          to="/register"
           className="bg-[#064A6C] hover:bg-[#053A55] text-white font-medium px-6 py-3 rounded-[7px] transition-all btn-arrow-hover"
         >
           Start Transfer
-        </a>
+        </Link>
       </section>
 
       {/* Divider */}

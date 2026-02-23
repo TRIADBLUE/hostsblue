@@ -1,12 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
-import { Menu, X, ChevronDown, Search, Globe, Server, Mail, Shield, Sparkles, Check } from 'lucide-react';
+import { Menu, X, ChevronDown, Search, Globe, Server, Mail, Shield, Sparkles, Check, ShoppingCart } from 'lucide-react';
 import { Brandsignature } from '@/components/ui/brandsignature';
 
 type MenuKey = 'domains' | 'hosting' | 'email' | 'security' | 'builder' | null;
 
-export function Header() {
+interface HeaderProps {
+  cartItemCount?: number;
+  onCartClick?: () => void;
+}
+
+export function Header({ cartItemCount = 0, onCartClick }: HeaderProps = {}) {
   const { isAuthenticated, customer, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeMenu, setActiveMenu] = useState<MenuKey>(null);
@@ -59,6 +64,20 @@ export function Header() {
             <Link to="/pricing" className="px-3 py-2 text-sm font-medium text-[#4B5563] hover:text-[#09080E] transition-colors">
               Pricing
             </Link>
+
+            {/* Cart */}
+            {cartItemCount > 0 && (
+              <button
+                onClick={onCartClick}
+                className="relative p-2 text-[#4B5563] hover:text-[#064A6C] transition-colors"
+                title="View cart"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span className="absolute -top-0.5 -right-0.5 bg-[#064A6C] text-white text-[10px] font-bold w-4.5 h-4.5 flex items-center justify-center rounded-full min-w-[18px] min-h-[18px]">
+                  {cartItemCount}
+                </span>
+              </button>
+            )}
 
             {/* Thin separator */}
             <div className="w-px h-6 bg-[#E5E7EB] mx-2" />

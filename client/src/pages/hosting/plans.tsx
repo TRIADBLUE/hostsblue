@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { Check, Zap, Shield, Server, ChevronDown } from 'lucide-react';
+import type { CartItem } from '@/hooks/use-cart';
+
+interface CartContext {
+  addItem: (item: Omit<CartItem, 'id'>) => void;
+  openCart: () => void;
+}
 
 const plans = [
   {
@@ -115,12 +121,31 @@ const faqs = [
 export function HostingPlansPage() {
   const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const cart = useOutletContext<CartContext>();
 
   const getPrice = (monthly: number) => {
     if (billing === 'annual') {
       return (monthly * 0.8).toFixed(2);
     }
     return monthly.toFixed(2);
+  };
+
+  const getPriceInCents = (monthly: number) => {
+    const price = billing === 'annual' ? monthly * 0.8 : monthly;
+    return Math.round(price * 100);
+  };
+
+  const addHostingToCart = (plan: typeof plans[0]) => {
+    const termMonths = billing === 'annual' ? 12 : 1;
+    cart.addItem({
+      type: 'hosting_plan',
+      name: `${plan.name} Hosting`,
+      description: `${plan.name} WordPress Hosting — ${billing === 'annual' ? 'annual' : 'monthly'} billing`,
+      price: getPriceInCents(plan.monthly) * (billing === 'annual' ? 12 : 1),
+      termMonths,
+      configuration: { planSlug: plan.name.toLowerCase(), billing },
+    });
+    cart.openCart();
   };
 
   return (
@@ -205,16 +230,16 @@ export function HostingPlansPage() {
               ))}
             </ul>
 
-            <Link
-              to="/register"
-              className={`block text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
+            <button
+              onClick={() => addHostingToCart(plan)}
+              className={`block w-full text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
                 plan.popular
                   ? 'bg-[#064A6C] hover:bg-[#053A55] text-white'
                   : 'border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]'
               }`}
             >
               {plan.cta}
-            </Link>
+            </button>
           </div>
         ))}
       </div>

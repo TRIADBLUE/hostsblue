@@ -1,13 +1,107 @@
-import { useSearchParams, Navigate } from 'react-router-dom';
+import { useSearchParams, Navigate, useOutletContext } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { orderApi } from '@/lib/api';
-import { Loader2, CreditCard, Lock, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2, CreditCard, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import type { CartItem } from '@/hooks/use-cart';
+
+interface CartContext {
+  items: CartItem[];
+  itemCount: number;
+  subtotal: number;
+  clearCart: () => void;
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  domain_registration: 'Domain Registration',
+  domain_transfer: 'Domain Transfer',
+  hosting_plan: 'WordPress Hosting',
+  email_service: 'Professional Email',
+  ssl_certificate: 'SSL Certificate',
+  sitelock: 'SiteLock Security',
+  website_builder: 'Website Builder',
+  privacy_protection: 'WHOIS Privacy',
+};
+
+function mapCartItemsToOrderItems(items: CartItem[]) {
+  return items.map(item => {
+    const base: any = {
+      type: item.type,
+      termYears: item.termMonths >= 12 ? Math.round(item.termMonths / 12) : item.termMonths,
+    };
+
+    const config = item.configuration || {};
+
+    if (['domain_registration', 'domain_transfer', 'domain_renewal', 'privacy_protection'].includes(item.type)) {
+      base.domain = config.domain || config.sld || '';
+      base.tld = config.tld || '';
+      if (config.authCode) base.options = { authCode: config.authCode };
+      if (config.domainId) base.options = { ...base.options, domainId: config.domainId };
+    }
+
+    if (['hosting_plan', 'email_service'].includes(item.type) && config.planId) {
+      base.planId = config.planId;
+      if (config.domain) base.domain = config.domain;
+      if (config.username) base.options = { username: config.username };
+    }
+
+    if (item.type === 'ssl_certificate') {
+      base.domain = config.domain || '';
+      base.options = {
+        price: item.price,
+        productType: config.productType || 'dv',
+        provider: config.provider || 'sectigo',
+        productId: config.productId,
+        approverEmail: config.approverEmail,
+      };
+    }
+
+    if (item.type === 'sitelock') {
+      base.domain = config.domain || '';
+      base.options = {
+        price: item.price,
+        planSlug: config.planSlug || 'basic',
+        domainId: config.domainId,
+      };
+    }
+
+    return base;
+  });
+}
 
 export function CheckoutPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const orderUuid = searchParams.get('order');
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Get cart from outlet context (provided by RootLayout)
+  let cart: CartContext | null = null;
+  try {
+    cart = useOutletContext<CartContext>();
+  } catch {
+    // Not in an outlet context (shouldn't happen, but safe fallback)
+  }
+
+  const hasCartItems = cart && cart.itemCount > 0 && !orderUuid;
+
+  // Create order from cart items
+  const createOrderMutation = useMutation({
+    mutationFn: (items: CartItem[]) => {
+      const orderItems = mapCartItemsToOrderItems(items);
+      return orderApi.createOrder({ items: orderItems });
+    },
+    onSuccess: (data) => {
+      cart?.clearCart();
+      setSearchParams({ order: data.order.uuid }, { replace: true });
+    },
+  });
+
+  // Auto-create order from cart when page loads with cart items
+  useEffect(() => {
+    if (hasCartItems && !createOrderMutation.isPending && !createOrderMutation.isSuccess) {
+      createOrderMutation.mutate(cart!.items);
+    }
+  }, [hasCartItems]);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', orderUuid],
@@ -18,13 +112,44 @@ export function CheckoutPage() {
   const checkoutMutation = useMutation({
     mutationFn: () => orderApi.checkout(orderUuid!),
     onSuccess: (data) => {
-      // Redirect to SwipesBlue payment page
       window.location.href = data.paymentUrl;
     },
   });
 
-  if (!orderUuid) {
+  // Show loading while creating order from cart
+  if (hasCartItems || createOrderMutation.isPending) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
+        <p className="text-gray-500">Creating your order...</p>
+      </div>
+    );
+  }
+
+  // No order UUID and no cart items — nothing to checkout
+  if (!orderUuid && !hasCartItems) {
     return <Navigate to="/" replace />;
+  }
+
+  // Order creation failed
+  if (createOrderMutation.isError) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-red-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Unable to create order</h2>
+        <p className="text-gray-500 text-center max-w-md">
+          {(createOrderMutation.error as any)?.message || 'Something went wrong. Please try again.'}
+        </p>
+        <button
+          onClick={() => window.history.back()}
+          className="btn-primary mt-2"
+        >
+          Go Back
+        </button>
+      </div>
+    );
   }
 
   if (isLoading) {
@@ -63,8 +188,7 @@ export function CheckoutPage() {
                     <div>
                       <h3 className="text-gray-900 font-medium">{item.description}</h3>
                       <p className="text-sm text-gray-500">
-                        {item.type === 'domain_registration' && 'Domain Registration'}
-                        {item.type === 'hosting_plan' && 'WordPress Hosting'}
+                        {TYPE_LABELS[item.type] || item.type}
                       </p>
                     </div>
                     <span className="text-gray-900 font-medium">
@@ -77,7 +201,7 @@ export function CheckoutPage() {
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-500">Subtotal</span>
-                  <span className="text-gray-900">${(order?.subtotal / 100).toFixed(2)}</span>
+                  <span className="text-gray-900">${((order?.subtotal || 0) / 100).toFixed(2)}</span>
                 </div>
                 {order?.discountAmount > 0 && (
                   <div className="flex items-center justify-between mb-2">
@@ -89,7 +213,7 @@ export function CheckoutPage() {
                 )}
                 <div className="flex items-center justify-between text-lg font-semibold mt-4">
                   <span className="text-gray-900">Total</span>
-                  <span className="text-gray-900">${(order?.total / 100).toFixed(2)}</span>
+                  <span className="text-gray-900">${((order?.total || 0) / 100).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -134,7 +258,7 @@ export function CheckoutPage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-500">Order Total</span>
                   <span className="text-2xl font-bold text-gray-900">
-                    ${(order?.total / 100).toFixed(2)}
+                    ${((order?.total || 0) / 100).toFixed(2)}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400">
@@ -144,8 +268,8 @@ export function CheckoutPage() {
 
               <button
                 onClick={handleCheckout}
-                disabled={isProcessing}
-                className="w-full bg-[#064A6C] hover:bg-[#053A55] text-white font-medium py-4 rounded-[7px] transition-colors flex items-center justify-center gap-2"
+                disabled={isProcessing || !orderUuid}
+                className="w-full bg-[#064A6C] hover:bg-[#053A55] text-white font-medium py-4 rounded-[7px] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isProcessing ? (
                   <>
@@ -159,6 +283,12 @@ export function CheckoutPage() {
                   </>
                 )}
               </button>
+
+              {checkoutMutation.isError && (
+                <p className="text-red-500 text-sm text-center mt-3">
+                  {(checkoutMutation.error as any)?.message || 'Payment failed. Please try again.'}
+                </p>
+              )}
 
               <p className="text-xs text-gray-400 text-center mt-4">
                 By completing this purchase, you agree to our Terms of Service and Privacy Policy.

@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { Check, Shield, Lock, ChevronDown, Globe, AlertTriangle } from 'lucide-react';
+import type { CartItem } from '@/hooks/use-cart';
+
+interface CartContext {
+  addItem: (item: Omit<CartItem, 'id'>) => void;
+  openCart: () => void;
+}
 
 const sslCerts = [
   {
@@ -140,8 +146,42 @@ const faqs = [
   },
 ];
 
+// Parse price string like "$49.99" to cents
+function parsePriceToCents(priceStr: string): number {
+  const num = parseFloat(priceStr.replace(/[^0-9.]/g, ''));
+  return Math.round(num * 100);
+}
+
 export function SecurityPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const cart = useOutletContext<CartContext>();
+
+  const addSslToCart = (ssl: typeof sslCerts[0]) => {
+    if (ssl.isFree) return; // Free SSL comes with hosting, no cart action
+    cart.addItem({
+      type: 'ssl_certificate',
+      name: ssl.type,
+      description: `${ssl.type} — ${ssl.price}${ssl.priceNote}`,
+      price: parsePriceToCents(ssl.price),
+      termMonths: 12,
+      configuration: {
+        productType: ssl.type.includes('DV') ? 'dv' : ssl.type.includes('OV') ? 'ov' : ssl.type.includes('EV') ? 'ev' : 'wildcard',
+      },
+    });
+    cart.openCart();
+  };
+
+  const addSitelockToCart = (plan: typeof sitelockPlans[0]) => {
+    cart.addItem({
+      type: 'sitelock',
+      name: `SiteLock ${plan.name}`,
+      description: `SiteLock ${plan.name} — $${plan.monthly.toFixed(2)}/mo`,
+      price: Math.round(plan.monthly * 100),
+      termMonths: 1,
+      configuration: { planSlug: plan.name.toLowerCase() },
+    });
+    cart.openCart();
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
@@ -207,16 +247,25 @@ export function SecurityPage() {
                 ))}
               </ul>
 
-              <Link
-                to="/register"
-                className={`block text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
-                  ssl.popular
-                    ? 'bg-[#064A6C] hover:bg-[#053A55] text-white'
-                    : 'border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]'
-                }`}
-              >
-                {ssl.isFree ? 'Get Free SSL' : 'Get Started'}
-              </Link>
+              {ssl.isFree ? (
+                <Link
+                  to="/hosting"
+                  className="block text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]"
+                >
+                  Get Free SSL
+                </Link>
+              ) : (
+                <button
+                  onClick={() => addSslToCart(ssl)}
+                  className={`block w-full text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
+                    ssl.popular
+                      ? 'bg-[#064A6C] hover:bg-[#053A55] text-white'
+                      : 'border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]'
+                  }`}
+                >
+                  Get Started
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -271,16 +320,16 @@ export function SecurityPage() {
                 ))}
               </ul>
 
-              <Link
-                to="/register"
-                className={`block text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
+              <button
+                onClick={() => addSitelockToCart(plan)}
+                className={`block w-full text-center font-medium px-6 py-3 rounded-[7px] transition-colors btn-arrow-hover justify-center ${
                   plan.popular
                     ? 'bg-[#064A6C] hover:bg-[#053A55] text-white'
                     : 'border border-gray-300 text-gray-700 hover:border-[#064A6C] hover:text-[#064A6C]'
                 }`}
               >
                 Get Started
-              </Link>
+              </button>
             </div>
           ))}
         </div>
