@@ -1,10 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { websiteBuilderApi } from '@/lib/api';
-import { Palette, Plus, Loader2, ExternalLink, Edit, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Palette, Plus, Loader2, ExternalLink, Edit, Upload, Trash2, Globe } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function WebsiteBuilderPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['website-builder', 'projects'],
@@ -12,7 +13,14 @@ export function WebsiteBuilderPage() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: (id: number) => websiteBuilderApi.publishProject(id),
+    mutationFn: (uuid: string) => websiteBuilderApi.publishProject(uuid),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['website-builder', 'projects'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (uuid: string) => websiteBuilderApi.deleteProject(uuid),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website-builder', 'projects'] });
     },
@@ -62,7 +70,12 @@ export function WebsiteBuilderPage() {
                       } text-xs`}>
                         {project.status}
                       </span>
-                      {project.domain && <span>{project.domain}</span>}
+                      {project.pagesCount !== undefined && (
+                        <span>{project.pagesCount} page{project.pagesCount !== 1 ? 's' : ''}</span>
+                      )}
+                      {project.aiGenerated && (
+                        <span className="text-[#064A6C] text-xs font-medium">AI Generated</span>
+                      )}
                       {project.updatedAt && (
                         <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
                       )}
@@ -71,28 +84,28 @@ export function WebsiteBuilderPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => alert('Opening editor...')}
+                    onClick={() => navigate(`/dashboard/website-builder/${project.uuid}/edit`)}
                     className="btn-outline text-sm flex items-center gap-2"
                     title="Edit project"
                   >
                     <Edit className="w-4 h-4" />
                     Edit
                   </button>
-                  {project.domain && project.status === 'published' && (
+                  {project.publishedUrl && project.status === 'published' && (
                     <a
-                      href={`https://${project.domain}`}
+                      href={`/sites/${project.slug}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-outline text-sm flex items-center gap-2"
-                      title="Preview site"
+                      title="View published site"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      Preview
+                      <Globe className="w-4 h-4" />
+                      View Site
                     </a>
                   )}
                   {project.status === 'draft' && (
                     <button
-                      onClick={() => publishMutation.mutate(project.id)}
+                      onClick={() => publishMutation.mutate(project.uuid)}
                       disabled={publishMutation.isPending}
                       className="btn-primary text-sm flex items-center gap-2"
                     >
@@ -100,6 +113,17 @@ export function WebsiteBuilderPage() {
                       Publish
                     </button>
                   )}
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete this project? This cannot be undone.')) {
+                        deleteMutation.mutate(project.uuid);
+                      }
+                    }}
+                    className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Delete project"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -109,7 +133,7 @@ export function WebsiteBuilderPage() {
         <div className="bg-white border border-gray-200 rounded-[7px] text-center py-16 px-6">
           <Palette className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No website projects yet</h3>
-          <p className="text-gray-500 mb-6">Create your first website with our drag-and-drop builder</p>
+          <p className="text-gray-500 mb-6">Create your first website with our AI-powered builder</p>
           <button
             onClick={() => window.location.href = '/website-builder'}
             className="btn-primary"

@@ -158,9 +158,33 @@ export const sitelockApi = {
 };
 
 export const websiteBuilderApi = {
+  // Templates
+  getTemplates: () => fetchApi<any[]>('/website-builder/templates'),
+  // Projects
   getProjects: () => fetchApi<any[]>('/website-builder/projects'),
   createProject: (data: any) => fetchApi<any>('/website-builder/projects', { method: 'POST', body: JSON.stringify(data) }),
-  publishProject: (id: number) => fetchApi<any>(`/website-builder/projects/${id}/publish`, { method: 'POST' }),
+  getProject: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}`),
+  updateProject: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteProject: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}`, { method: 'DELETE' }),
+  publishProject: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/publish`, { method: 'POST' }),
+  // Pages
+  getPages: (uuid: string) => fetchApi<any[]>(`/website-builder/projects/${uuid}/pages`),
+  createPage: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/pages`, { method: 'POST', body: JSON.stringify(data) }),
+  getPage: (uuid: string, pageSlug: string) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/${pageSlug}`),
+  savePage: (uuid: string, pageSlug: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/${pageSlug}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deletePage: (uuid: string, pageSlug: string) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/${pageSlug}`, { method: 'DELETE' }),
+  reorderPages: (uuid: string, order: any[]) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) }),
+  // AI
+  aiGenerate: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate`, { method: 'POST', body: JSON.stringify(data) }),
+  aiChat: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/chat`, { method: 'POST', body: JSON.stringify(data) }),
+  aiGenerateBlock: (uuid: string, type: string) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate-block`, { method: 'POST', body: JSON.stringify({ type }) }),
+  aiRewrite: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/rewrite`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+export const aiSettingsApi = {
+  get: () => fetchApi<any>('/ai/settings'),
+  save: (data: any) => fetchApi<any>('/ai/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  test: (data: any) => fetchApi<any>('/ai/settings/test', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 export const supportApi = {

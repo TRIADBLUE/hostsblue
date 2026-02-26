@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { websiteBuilderApi } from '@/lib/api';
 import {
   Check,
   ChevronUp,
@@ -163,6 +164,8 @@ export function hasBuilderProgress(): boolean {
 export function AIBuilder() {
   const [state, setState] = useState<BuilderState>(loadState);
   const [nameTimer, setNameTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const navigate = useNavigate();
 
   // Auto-save on every state change
   useEffect(() => {
@@ -515,13 +518,48 @@ export function AIBuilder() {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           ) : (
-            <Link
-              to="/website-builder/editor"
-              className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium bg-[#064A6C] hover:bg-[#053A55] text-white rounded-[7px] transition-colors"
+            <button
+              onClick={async () => {
+                if (isGenerating) return;
+                setIsGenerating(true);
+                try {
+                  // 1. Create project
+                  const project = await websiteBuilderApi.createProject({
+                    name: state.businessName,
+                    businessType: businessLabel,
+                    businessDescription: `A ${businessLabel.toLowerCase()} business called ${state.businessName}`,
+                  });
+                  // 2. Generate with AI
+                  await websiteBuilderApi.aiGenerate(project.uuid, {
+                    businessName: state.businessName,
+                    businessType: businessLabel,
+                    businessDescription: `A ${businessLabel.toLowerCase()} business called ${state.businessName}`,
+                    style: state.styleChoice || 'Professional',
+                    selectedPages: state.selectedPages,
+                  });
+                  // 3. Clean up builder state and redirect
+                  localStorage.removeItem(STORAGE_KEY);
+                  navigate(`/dashboard/website-builder/${project.uuid}/edit`);
+                } catch (err) {
+                  console.error('Generation failed:', err);
+                  setIsGenerating(false);
+                }
+              }}
+              disabled={isGenerating}
+              className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium bg-[#064A6C] hover:bg-[#053A55] text-white rounded-[7px] transition-colors disabled:opacity-60"
             >
-              Open Full Editor
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+              {isGenerating ? (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Generate & Open Editor
+                </>
+              )}
+            </button>
           )}
         </div>
       </div>

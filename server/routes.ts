@@ -11,6 +11,13 @@ import { OpenSRSEmailIntegration } from './services/opensrs-email-integration.js
 import { OpenSRSSSLIntegration } from './services/opensrs-ssl-integration.js';
 import { SiteLockIntegration } from './services/sitelock-integration.js';
 import { OrderOrchestrator } from './services/order-orchestration.js';
+import { WebsiteAIService } from './services/website-ai.js';
+import { AIProviderFactory, testProviderConnection } from './services/ai-provider.js';
+import type { ProviderConfig } from './services/ai-provider.js';
+import { renderPage } from './services/website-renderer.js';
+import { encryptCredential, decryptCredential } from './services/wpmudev-integration.js';
+import { getTemplateById, templates as allTemplates } from '../shared/templates/index.js';
+import { defaultTheme, createDefaultBlock } from '../shared/block-types.js';
 import { Resend } from 'resend';
 import crypto from 'crypto';
 import { ZodError, z } from 'zod';
@@ -1794,41 +1801,447 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // WEBSITE BUILDER ROUTES
   // ============================================================================
 
-  // Get customer's website builder projects
-  app.get('/api/v1/website-builder/projects', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const projects = await db.query.websiteProjects.findMany({
-      where: eq(schema.websiteProjects.customerId, req.user!.userId),
-      orderBy: desc(schema.websiteProjects.createdAt),
+  // Helper: get AI service for current customer
+  async function getAIService(customerId: number): Promise<WebsiteAIService> {
+    const settings = await db.query.aiProviderSettings.findFirst({
+      where: and(eq(schema.aiProviderSettings.customerId, customerId), eq(schema.aiProviderSettings.isActive, true)),
     });
-    res.json(successResponse(projects));
+    let config: ProviderConfig | null = null;
+    if (settings && settings.apiKey) {
+      let apiKey = settings.apiKey;
+      try { apiKey = decryptCredential(settings.apiKey); } catch { /* use as-is */ }
+      config = { provider: settings.provider as any, apiKey, modelName: settings.modelName || undefined, baseUrl: settings.baseUrl || undefined };
+    }
+    return new WebsiteAIService(config);
+  }
+
+  // Helper: verify project ownership
+  async function getOwnedProject(uuid: string, customerId: number) {
+    return db.query.websiteProjects.findFirst({
+      where: and(
+        eq(schema.websiteProjects.uuid, uuid),
+        eq(schema.websiteProjects.customerId, customerId),
+        sql`${schema.websiteProjects.deletedAt} IS NULL`,
+      ),
+    });
+  }
+
+  // ---- Templates list ----
+  app.get('/api/v1/website-builder/templates', asyncHandler(async (_req, res) => {
+    res.json(successResponse(allTemplates.map(t => ({ id: t.id, name: t.name, description: t.description, category: t.category, thumbnail: t.thumbnail }))));
   }));
 
-  // Create website builder project
+  // ---- Project CRUD ----
+  app.get('/api/v1/website-builder/projects', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const projects = await db.query.websiteProjects.findMany({
+      where: and(eq(schema.websiteProjects.customerId, req.user!.userId), sql`${schema.websiteProjects.deletedAt} IS NULL`),
+      orderBy: desc(schema.websiteProjects.createdAt),
+    });
+    // Attach page count
+    const result = [];
+    for (const p of projects) {
+      const pages = await db.query.websitePages.findMany({ where: eq(schema.websitePages.projectId, p.id) });
+      result.push({ ...p, pagesCount: pages.length });
+    }
+    res.json(successResponse(result));
+  }));
+
   app.post('/api/v1/website-builder/projects', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const { name, template, customDomain } = req.body;
+    const { name, template, customDomain, businessType, businessDescription } = req.body;
+
+    // Generate slug from name
+    const baseSlug = (name || 'site').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+    const existing = await db.query.websiteProjects.findFirst({ where: eq(schema.websiteProjects.slug, baseSlug) });
+    const slug = existing ? `${baseSlug}-${Date.now().toString(36)}` : baseSlug;
+
     const [project] = await db.insert(schema.websiteProjects).values({
       customerId: req.user!.userId,
       name,
+      slug,
       template: template || 'blank',
       customDomain,
+      businessType,
+      businessDescription,
       status: 'draft',
+      theme: defaultTheme,
     }).returning();
+
+    // If template selected, populate pages from template
+    if (template && template !== 'blank') {
+      const tpl = getTemplateById(template);
+      if (tpl) {
+        await db.update(schema.websiteProjects).set({ theme: tpl.theme }).where(eq(schema.websiteProjects.id, project.id));
+        for (let i = 0; i < tpl.pages.length; i++) {
+          const page = tpl.pages[i];
+          // Replace {businessName} placeholders
+          const blocks = JSON.parse(JSON.stringify(page.blocks).replace(/\{businessName\}/g, name || 'My Website'));
+          await db.insert(schema.websitePages).values({
+            projectId: project.id,
+            slug: page.slug,
+            title: page.title,
+            sortOrder: i,
+            isHomePage: page.isHomePage,
+            showInNav: page.showInNav,
+            blocks,
+          });
+        }
+      }
+    }
+
     res.status(201).json(successResponse(project));
   }));
 
-  // Publish website builder project
-  app.post('/api/v1/website-builder/projects/:id/publish', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
-    const id = parseInt(req.params.id);
-    const project = await db.query.websiteProjects.findFirst({
-      where: and(eq(schema.websiteProjects.id, id), eq(schema.websiteProjects.customerId, req.user!.userId)),
-    });
+  app.get('/api/v1/website-builder/projects/:uuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
 
+    const pages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
+    res.json(successResponse({ ...project, pages }));
+  }));
+
+  app.patch('/api/v1/website-builder/projects/:uuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { name, theme, globalSeo, businessType, businessDescription } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (name !== undefined) updates.name = name;
+    if (theme !== undefined) updates.theme = theme;
+    if (globalSeo !== undefined) updates.globalSeo = globalSeo;
+    if (businessType !== undefined) updates.businessType = businessType;
+    if (businessDescription !== undefined) updates.businessDescription = businessDescription;
+
+    const [updated] = await db.update(schema.websiteProjects).set(updates).where(eq(schema.websiteProjects.id, project.id)).returning();
+    res.json(successResponse(updated));
+  }));
+
+  app.delete('/api/v1/website-builder/projects/:uuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    await db.update(schema.websiteProjects).set({ deletedAt: new Date(), status: 'archived' }).where(eq(schema.websiteProjects.id, project.id));
+    res.json(successResponse(null, 'Project deleted'));
+  }));
+
+  // ---- Page CRUD ----
+  app.get('/api/v1/website-builder/projects/:uuid/pages', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const pages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+    res.json(successResponse(pages));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/pages', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { slug, title, blocks, isHomePage, showInNav } = req.body;
+    const maxSort = await db.query.websitePages.findFirst({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: desc(schema.websitePages.sortOrder),
+    });
+
+    const [page] = await db.insert(schema.websitePages).values({
+      projectId: project.id,
+      slug: slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      title,
+      sortOrder: (maxSort?.sortOrder ?? -1) + 1,
+      isHomePage: isHomePage || false,
+      showInNav: showInNav !== false,
+      blocks: blocks || [],
+    }).returning();
+
+    res.status(201).json(successResponse(page));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/pages/:pageSlug', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, req.params.pageSlug)),
+    });
+    if (!page) return res.status(404).json(errorResponse('Page not found'));
+    res.json(successResponse(page));
+  }));
+
+  app.patch('/api/v1/website-builder/projects/:uuid/pages/:pageSlug', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, req.params.pageSlug)),
+    });
+    if (!page) return res.status(404).json(errorResponse('Page not found'));
+
+    const { title, blocks, seo, showInNav } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (title !== undefined) updates.title = title;
+    if (blocks !== undefined) updates.blocks = blocks;
+    if (seo !== undefined) updates.seo = seo;
+    if (showInNav !== undefined) updates.showInNav = showInNav;
+
+    const [updated] = await db.update(schema.websitePages).set(updates).where(eq(schema.websitePages.id, page.id)).returning();
+    res.json(successResponse(updated));
+  }));
+
+  app.delete('/api/v1/website-builder/projects/:uuid/pages/:pageSlug', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, req.params.pageSlug)),
+    });
+    if (!page) return res.status(404).json(errorResponse('Page not found'));
+
+    await db.delete(schema.websitePages).where(eq(schema.websitePages.id, page.id));
+    res.json(successResponse(null, 'Page deleted'));
+  }));
+
+  app.patch('/api/v1/website-builder/projects/:uuid/pages/reorder', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { order } = req.body; // array of { slug, sortOrder }
+    for (const item of order || []) {
+      await db.update(schema.websitePages)
+        .set({ sortOrder: item.sortOrder })
+        .where(and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, item.slug)));
+    }
+    res.json(successResponse(null, 'Pages reordered'));
+  }));
+
+  // ---- AI Endpoints ----
+  app.post('/api/v1/website-builder/projects/:uuid/ai/generate', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const ai = await getAIService(req.user!.userId);
+    const { businessName, businessType, businessDescription, style, selectedPages } = req.body;
+
+    const result = await ai.generateWebsite({
+      businessName: businessName || project.name,
+      businessType: businessType || project.businessType || 'business',
+      businessDescription: businessDescription || project.businessDescription,
+      style,
+      selectedPages,
+    });
+
+    // Save theme to project
+    await db.update(schema.websiteProjects).set({
+      theme: result.theme,
+      aiGenerated: true,
+      businessType: businessType || project.businessType,
+      businessDescription: businessDescription || project.businessDescription,
+      updatedAt: new Date(),
+    }).where(eq(schema.websiteProjects.id, project.id));
+
+    // Delete existing pages and replace with generated ones
+    await db.delete(schema.websitePages).where(eq(schema.websitePages.projectId, project.id));
+    for (let i = 0; i < result.pages.length; i++) {
+      const page = result.pages[i];
+      await db.insert(schema.websitePages).values({
+        projectId: project.id,
+        slug: page.slug,
+        title: page.title,
+        sortOrder: i,
+        isHomePage: page.isHomePage,
+        showInNav: page.showInNav,
+        blocks: page.blocks,
+      });
+    }
+
+    res.json(successResponse(result));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/ai/chat', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const ai = await getAIService(req.user!.userId);
+    const pages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
+    const { message, history } = req.body;
+    const siteContext = {
+      businessName: project.name,
+      businessType: project.businessType || 'business',
+      pages: pages.map(p => ({ slug: p.slug, title: p.title, blocks: (p.blocks || []) as any[] })),
+    };
+
+    const result = await ai.coachChat(message, siteContext, history || []);
+
+    // Store in AI session
+    let session = await db.query.websiteAiSessions.findFirst({
+      where: eq(schema.websiteAiSessions.projectId, project.id),
+    });
+
+    const newMessages = [
+      ...(history || []),
+      { role: 'user', content: message, timestamp: new Date().toISOString() },
+      { role: 'assistant', content: result.message, timestamp: new Date().toISOString() },
+    ];
+
+    if (session) {
+      await db.update(schema.websiteAiSessions).set({ messages: newMessages, updatedAt: new Date() }).where(eq(schema.websiteAiSessions.id, session.id));
+    } else {
+      await db.insert(schema.websiteAiSessions).values({ projectId: project.id, messages: newMessages });
+    }
+
+    res.json(successResponse(result));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/ai/generate-block', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const ai = await getAIService(req.user!.userId);
+    const { type } = req.body;
+    const block = await ai.generateBlock(type, { businessName: project.name, businessType: project.businessType || 'business' });
+    res.json(successResponse(block));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/ai/rewrite', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const ai = await getAIService(req.user!.userId);
+    const { block, instruction } = req.body;
+    const result = await ai.rewriteContent(block, instruction);
+    res.json(successResponse(result));
+  }));
+
+  // ---- AI Provider Settings ----
+  app.get('/api/v1/ai/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const settings = await db.query.aiProviderSettings.findFirst({
+      where: eq(schema.aiProviderSettings.customerId, req.user!.userId),
+    });
+    if (!settings) return res.json(successResponse(null));
+    // Don't send full API key to client
+    const masked = settings.apiKey ? `${settings.apiKey.substring(0, 8)}${'*'.repeat(20)}` : '';
+    res.json(successResponse({ ...settings, apiKey: masked }));
+  }));
+
+  app.put('/api/v1/ai/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { provider, apiKey, modelName, baseUrl } = req.body;
+
+    const existing = await db.query.aiProviderSettings.findFirst({
+      where: eq(schema.aiProviderSettings.customerId, req.user!.userId),
+    });
+
+    const encryptedKey = apiKey && !apiKey.includes('*') ? encryptCredential(apiKey) : undefined;
+
+    if (existing) {
+      const updates: Record<string, any> = { provider, modelName, baseUrl, updatedAt: new Date() };
+      if (encryptedKey) updates.apiKey = encryptedKey;
+      const [updated] = await db.update(schema.aiProviderSettings).set(updates).where(eq(schema.aiProviderSettings.id, existing.id)).returning();
+      res.json(successResponse(updated));
+    } else {
+      const [created] = await db.insert(schema.aiProviderSettings).values({
+        customerId: req.user!.userId,
+        provider,
+        apiKey: encryptedKey || '',
+        modelName,
+        baseUrl,
+      }).returning();
+      res.json(successResponse(created));
+    }
+  }));
+
+  app.post('/api/v1/ai/settings/test', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { provider, apiKey, modelName, baseUrl } = req.body;
+    const result = await testProviderConnection({ provider, apiKey, modelName, baseUrl });
+    res.json(successResponse(result));
+  }));
+
+  // ---- Publishing ----
+  app.post('/api/v1/website-builder/projects/:uuid/publish', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const slug = project.slug || project.uuid;
+    const publishedUrl = `${slug}.sites.hostsblue.com`;
+
     const [updated] = await db.update(schema.websiteProjects)
-      .set({ status: 'published', updatedAt: new Date() })
-      .where(eq(schema.websiteProjects.id, id))
+      .set({ status: 'published', publishedUrl, publishedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.websiteProjects.id, project.id))
       .returning();
+
     res.json(successResponse(updated, 'Project published'));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/preview', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const pageSlug = (req.query.page as string) || 'home';
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, pageSlug)),
+    });
+    if (!page) return res.status(404).json(errorResponse('Page not found'));
+
+    const theme = (project.theme || defaultTheme) as any;
+    const html = renderPage((page.blocks || []) as any[], {
+      theme,
+      businessName: project.name,
+      seo: (page.seo || {}) as any,
+    });
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }));
+
+  // ---- Published Site Serving ----
+  app.get('/sites/:slug', asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).send('<h1>Site not found</h1>');
+
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.isHomePage, true)),
+    });
+    if (!page) return res.status(404).send('<h1>No home page found</h1>');
+
+    const theme = (project.theme || defaultTheme) as any;
+    const html = renderPage((page.blocks || []) as any[], {
+      theme,
+      businessName: project.name,
+      seo: (page.seo || {}) as any,
+    });
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }));
+
+  app.get('/sites/:slug/:pageSlug', asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).send('<h1>Site not found</h1>');
+
+    const page = await db.query.websitePages.findFirst({
+      where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, req.params.pageSlug)),
+    });
+    if (!page) return res.status(404).send('<h1>Page not found</h1>');
+
+    const theme = (project.theme || defaultTheme) as any;
+    const html = renderPage((page.blocks || []) as any[], {
+      theme,
+      businessName: project.name,
+      seo: (page.seo || {}) as any,
+    });
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
   }));
 
   // ============================================================================

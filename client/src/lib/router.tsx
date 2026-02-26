@@ -17,6 +17,7 @@ import { EmailPage } from '@/pages/dashboard/email';
 import { SslPage } from '@/pages/dashboard/ssl';
 import { SitelockPage } from '@/pages/dashboard/sitelock';
 import { WebsiteBuilderPage } from '@/pages/dashboard/website-builder';
+import { WebsiteEditorPage } from '@/pages/dashboard/website-editor';
 import { BillingPage } from '@/pages/dashboard/billing';
 import { SupportPage } from '@/pages/dashboard/support';
 import { SettingsPage } from '@/pages/dashboard/settings';
@@ -92,6 +93,14 @@ export const router = createBrowserRouter([
       { path: 'support', element: <SupportPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
+  },
+  {
+    path: '/dashboard/website-builder/:uuid/edit',
+    element: (
+      <ProtectedRoute>
+        <WebsiteEditorPage />
+      </ProtectedRoute>
+    ),
   },
   {
     path: '/panel/login',

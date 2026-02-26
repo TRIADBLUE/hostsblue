@@ -936,20 +936,117 @@ export const websiteProjects = pgTable('website_projects', {
   uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
   customerId: integer('customer_id').references(() => customers.id).notNull(),
   name: varchar('name', { length: 100 }).notNull(),
+  slug: varchar('slug', { length: 100 }),
   template: varchar('template', { length: 50 }),
   status: varchar('status', { length: 20 }).default('draft').notNull(), // draft, published, archived
   publishedUrl: varchar('published_url', { length: 255 }),
   customDomain: varchar('custom_domain', { length: 253 }),
   settings: jsonb('settings').default({}),
+  businessType: varchar('business_type', { length: 100 }),
+  businessDescription: text('business_description'),
+  aiGenerated: boolean('ai_generated').default(false),
+  theme: jsonb('theme').default({}),
+  globalSeo: jsonb('global_seo').default({}),
+  publishedAt: timestamp('published_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   customerIdx: index('website_projects_customer_idx').on(table.customerId),
+  slugIdx: uniqueIndex('website_projects_slug_idx').on(table.slug),
 }));
 
-export const websiteProjectsRelations = relations(websiteProjects, ({ one }) => ({
+export const websiteProjectsRelations = relations(websiteProjects, ({ one, many }) => ({
   customer: one(customers, { fields: [websiteProjects.customerId], references: [customers.id] }),
+  pages: many(websitePages),
+  assets: many(websiteAssets),
+  aiSessions: many(websiteAiSessions),
+}));
+
+// ============================================================================
+// WEBSITE PAGES
+// ============================================================================
+
+export const websitePages = pgTable('website_pages', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  slug: varchar('slug', { length: 100 }).notNull(),
+  title: varchar('title', { length: 200 }).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  isHomePage: boolean('is_home_page').default(false).notNull(),
+  showInNav: boolean('show_in_nav').default(true).notNull(),
+  seo: jsonb('seo').default({}),
+  blocks: jsonb('blocks').default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('website_pages_project_idx').on(table.projectId),
+  projectSlugIdx: uniqueIndex('website_pages_project_slug_idx').on(table.projectId, table.slug),
+}));
+
+export const websitePagesRelations = relations(websitePages, ({ one }) => ({
+  project: one(websiteProjects, { fields: [websitePages.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// WEBSITE ASSETS
+// ============================================================================
+
+export const websiteAssets = pgTable('website_assets', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  filename: varchar('filename', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 100 }),
+  sizeBytes: integer('size_bytes'),
+  url: varchar('url', { length: 500 }).notNull(),
+  alt: varchar('alt', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('website_assets_project_idx').on(table.projectId),
+}));
+
+export const websiteAssetsRelations = relations(websiteAssets, ({ one }) => ({
+  project: one(websiteProjects, { fields: [websiteAssets.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// WEBSITE AI SESSIONS
+// ============================================================================
+
+export const websiteAiSessions = pgTable('website_ai_sessions', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  messages: jsonb('messages').default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('website_ai_sessions_project_idx').on(table.projectId),
+}));
+
+export const websiteAiSessionsRelations = relations(websiteAiSessions, ({ one }) => ({
+  project: one(websiteProjects, { fields: [websiteAiSessions.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// AI PROVIDER SETTINGS
+// ============================================================================
+
+export const aiProviderSettings = pgTable('ai_provider_settings', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  provider: varchar('provider', { length: 20 }).notNull(), // deepseek, openai, anthropic, groq, custom
+  apiKey: text('api_key'), // encrypted with AES-256-GCM
+  modelName: varchar('model_name', { length: 100 }),
+  baseUrl: varchar('base_url', { length: 500 }),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: index('ai_provider_customer_idx').on(table.customerId),
+}));
+
+export const aiProviderSettingsRelations = relations(aiProviderSettings, ({ one }) => ({
+  customer: one(customers, { fields: [aiProviderSettings.customerId], references: [customers.id] }),
 }));
 
 // ============================================================================
@@ -1026,6 +1123,14 @@ export const insertSitelockAccountSchema = createInsertSchema(sitelockAccounts);
 export const selectSitelockAccountSchema = createSelectSchema(sitelockAccounts);
 export const insertWebsiteProjectSchema = createInsertSchema(websiteProjects);
 export const selectWebsiteProjectSchema = createSelectSchema(websiteProjects);
+export const insertWebsitePageSchema = createInsertSchema(websitePages);
+export const selectWebsitePageSchema = createSelectSchema(websitePages);
+export const insertWebsiteAssetSchema = createInsertSchema(websiteAssets);
+export const selectWebsiteAssetSchema = createSelectSchema(websiteAssets);
+export const insertWebsiteAiSessionSchema = createInsertSchema(websiteAiSessions);
+export const selectWebsiteAiSessionSchema = createSelectSchema(websiteAiSessions);
+export const insertAiProviderSettingsSchema = createInsertSchema(aiProviderSettings);
+export const selectAiProviderSettingsSchema = createSelectSchema(aiProviderSettings);
 export const insertSupportTicketSchema = createInsertSchema(supportTickets);
 export const selectSupportTicketSchema = createSelectSchema(supportTickets);
 export const insertTicketMessageSchema = createInsertSchema(ticketMessages);
@@ -1092,6 +1197,14 @@ export type NewSitelockAccount = typeof sitelockAccounts.$inferInsert;
 // Website builder types
 export type WebsiteProject = typeof websiteProjects.$inferSelect;
 export type NewWebsiteProject = typeof websiteProjects.$inferInsert;
+export type WebsitePage = typeof websitePages.$inferSelect;
+export type NewWebsitePage = typeof websitePages.$inferInsert;
+export type WebsiteAsset = typeof websiteAssets.$inferSelect;
+export type NewWebsiteAsset = typeof websiteAssets.$inferInsert;
+export type WebsiteAiSession = typeof websiteAiSessions.$inferSelect;
+export type NewWebsiteAiSession = typeof websiteAiSessions.$inferInsert;
+export type AiProviderSetting = typeof aiProviderSettings.$inferSelect;
+export type NewAiProviderSetting = typeof aiProviderSettings.$inferInsert;
 
 // Support types
 export type SupportTicket = typeof supportTickets.$inferSelect;
