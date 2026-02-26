@@ -3,7 +3,7 @@
  * Uses the provider abstraction. Does NOT care which AI backend is active.
  */
 
-import { AIProviderFactory, type AIProvider, type ProviderConfig, type Message } from './ai-provider.js';
+import { AIProviderFactory, type AIProvider, type ProviderConfig, type Message, type TokenUsage } from './ai-provider.js';
 import { BLOCK_TYPES, type BlockType, type WebsiteBlock, type WebsiteTheme, defaultTheme, generateBlockId, createDefaultBlock } from '../../shared/block-types.js';
 
 // ============================================================================
@@ -21,6 +21,7 @@ export interface GenerateWebsiteInput {
 export interface GeneratedWebsite {
   theme: WebsiteTheme;
   pages: GeneratedPage[];
+  usage?: TokenUsage;
 }
 
 export interface GeneratedPage {
@@ -35,6 +36,7 @@ export interface CoachResponse {
   message: string;
   operations: CoachOperation[];
   suggestions: string[];
+  usage?: TokenUsage;
 }
 
 export interface CoachOperation {
@@ -125,7 +127,7 @@ Pages needed: ${pages.join(', ')}
 Return JSON: { "pages": [{ "slug": "home", "title": "Home", "isHomePage": true, "showInNav": true, "blocks": [...] }] }`;
 
     try {
-      const result = await this.provider.chatJSON<{ pages: GeneratedPage[] }>(
+      const { data: result, usage } = await this.provider.chatJSON<{ pages: GeneratedPage[] }>(
         [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -142,7 +144,7 @@ Return JSON: { "pages": [{ "slug": "home", "title": "Home", "isHomePage": true, 
         }
       }
 
-      return { theme, pages: result.pages };
+      return { theme, pages: result.pages, usage };
     } catch (err) {
       console.error('AI generation failed, falling back to mock:', err);
       return this.mockGenerateWebsite(input);
@@ -199,7 +201,7 @@ If the user asks for site changes, return the changes as operations the user can
     ];
 
     try {
-      const result = await this.provider.chatJSON<CoachResponse>(
+      const { data: result, usage } = await this.provider.chatJSON<CoachResponse>(
         messages,
         '{ "message": string, "operations": CoachOperation[], "suggestions": string[] }',
         { maxTokens: 4096, temperature: 0.7 },
@@ -210,6 +212,7 @@ If the user asks for site changes, return the changes as operations the user can
         message: result.message || 'I processed your request.',
         operations: Array.isArray(result.operations) ? result.operations : [],
         suggestions: Array.isArray(result.suggestions) ? result.suggestions : [],
+        usage,
       };
     } catch (err) {
       console.error('AI coach chat failed:', err);
@@ -220,7 +223,7 @@ If the user asks for site changes, return the changes as operations the user can
   /**
    * Generate a single block
    */
-  async generateBlock(type: BlockType, businessContext: { businessName: string; businessType: string }): Promise<WebsiteBlock> {
+  async generateBlock(type: BlockType, businessContext: { businessName: string; businessType: string }): Promise<WebsiteBlock & { usage?: TokenUsage }> {
     if (this.isMock) {
       return createDefaultBlock(type);
     }
@@ -230,7 +233,7 @@ ${blockSchemaDescription}
 Return only the block object. Make the content specific and compelling for this business type.`;
 
     try {
-      const block = await this.provider.chatJSON<WebsiteBlock>(
+      const { data: block, usage } = await this.provider.chatJSON<WebsiteBlock>(
         [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Generate a "${type}" block with realistic content.` },
@@ -242,7 +245,7 @@ Return only the block object. Make the content specific and compelling for this 
       if (!block.id) block.id = generateBlockId();
       if (!block.style) block.style = { paddingY: 'lg', paddingX: 'md', maxWidth: 'lg' };
       block.type = type; // Ensure type is correct
-      return block;
+      return { ...block, usage };
     } catch {
       return createDefaultBlock(type);
     }
@@ -251,7 +254,7 @@ Return only the block object. Make the content specific and compelling for this 
   /**
    * Rewrite block content with an instruction
    */
-  async rewriteContent(block: WebsiteBlock, instruction: string): Promise<WebsiteBlock> {
+  async rewriteContent(block: WebsiteBlock, instruction: string): Promise<WebsiteBlock & { usage?: TokenUsage }> {
     if (this.isMock) {
       return { ...block, data: { ...block.data } };
     }
@@ -260,7 +263,7 @@ Return only the block object. Make the content specific and compelling for this 
 Keep the same block structure, only modify the content/data as instructed.`;
 
     try {
-      const result = await this.provider.chatJSON<WebsiteBlock>(
+      const { data: result, usage } = await this.provider.chatJSON<WebsiteBlock>(
         [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Block: ${JSON.stringify(block)}\n\nInstruction: ${instruction}\n\nReturn the modified block as JSON.` },
@@ -271,7 +274,7 @@ Keep the same block structure, only modify the content/data as instructed.`;
 
       result.id = block.id; // Preserve original ID
       result.type = block.type; // Preserve type
-      return result;
+      return { ...result, usage };
     } catch {
       return block;
     }
@@ -280,20 +283,20 @@ Keep the same block structure, only modify the content/data as instructed.`;
   /**
    * Generate SEO metadata for pages
    */
-  async generateSeo(pages: { slug: string; title: string; blocks: WebsiteBlock[] }[], businessContext: { businessName: string; businessType: string }): Promise<Record<string, { title: string; description: string }>> {
+  async generateSeo(pages: { slug: string; title: string; blocks: WebsiteBlock[] }[], businessContext: { businessName: string; businessType: string }): Promise<{ seo: Record<string, { title: string; description: string }>; usage?: TokenUsage }> {
     if (this.isMock) {
-      const result: Record<string, { title: string; description: string }> = {};
+      const seo: Record<string, { title: string; description: string }> = {};
       for (const page of pages) {
-        result[page.slug] = {
+        seo[page.slug] = {
           title: `${page.title} | ${businessContext.businessName}`,
           description: `${page.title} page for ${businessContext.businessName}, a ${businessContext.businessType.toLowerCase()} business.`,
         };
       }
-      return result;
+      return { seo };
     }
 
     try {
-      return await this.provider.chatJSON<Record<string, { title: string; description: string }>>(
+      const { data, usage } = await this.provider.chatJSON<Record<string, { title: string; description: string }>>(
         [
           { role: 'system', content: 'Generate SEO meta titles and descriptions for each page of a website. Return JSON mapping page slug to { title, description }. Titles should be 50-60 chars, descriptions 150-160 chars.' },
           { role: 'user', content: `Business: "${businessContext.businessName}" (${businessContext.businessType})\nPages: ${pages.map(p => `${p.slug}: ${p.title}`).join(', ')}` },
@@ -301,15 +304,16 @@ Keep the same block structure, only modify the content/data as instructed.`;
         '{ "home": { "title": string, "description": string }, ... }',
         { maxTokens: 1024, temperature: 0.3 },
       );
+      return { seo: data, usage };
     } catch {
-      const result: Record<string, { title: string; description: string }> = {};
+      const seo: Record<string, { title: string; description: string }> = {};
       for (const page of pages) {
-        result[page.slug] = {
+        seo[page.slug] = {
           title: `${page.title} | ${businessContext.businessName}`,
           description: `${page.title} page for ${businessContext.businessName}.`,
         };
       }
-      return result;
+      return { seo };
     }
   }
 

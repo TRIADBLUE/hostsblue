@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi, aiSettingsApi } from '@/lib/api';
+import { authApi, aiSettingsApi, aiCreditsApi } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
 import { Loader2, Save, User, Lock, Bell, Bot, CheckCircle, XCircle } from 'lucide-react';
 
@@ -387,14 +387,17 @@ const AI_PROVIDERS = [
   { value: 'openai', label: 'OpenAI', defaultModel: 'gpt-4o', defaultUrl: 'https://api.openai.com/v1' },
   { value: 'anthropic', label: 'Anthropic (Claude)', defaultModel: 'claude-sonnet-4-20250514', defaultUrl: '' },
   { value: 'groq', label: 'Groq', defaultModel: 'llama-3.3-70b-versatile', defaultUrl: 'https://api.groq.com/openai/v1' },
+  { value: 'gemini', label: 'Google Gemini', defaultModel: 'gemini-2.0-flash', defaultUrl: '' },
   { value: 'custom', label: 'Custom (OpenAI-compatible)', defaultModel: '', defaultUrl: '' },
 ];
 
 function AIProviderSettings() {
+  const queryClient = useQueryClient();
   const [provider, setProvider] = useState('deepseek');
   const [apiKey, setApiKey] = useState('');
   const [modelName, setModelName] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
+  const [billingMode, setBillingMode] = useState('credits');
   const [saved, setSaved] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState(false);
@@ -402,6 +405,16 @@ function AIProviderSettings() {
   const { data: settings } = useQuery({
     queryKey: ['ai-settings'],
     queryFn: aiSettingsApi.get,
+  });
+
+  const { data: modelsData } = useQuery({
+    queryKey: ['ai-models'],
+    queryFn: aiSettingsApi.getModels,
+  });
+
+  const { data: balance } = useQuery({
+    queryKey: ['ai-credits-balance'],
+    queryFn: aiCreditsApi.getBalance,
   });
 
   useEffect(() => {
@@ -413,11 +426,24 @@ function AIProviderSettings() {
     }
   }, [settings]);
 
+  useEffect(() => {
+    if (balance) {
+      setBillingMode(balance.billingMode || 'credits');
+    }
+  }, [balance]);
+
   const saveMutation = useMutation({
     mutationFn: (data: any) => aiSettingsApi.save(data),
     onSuccess: () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    },
+  });
+
+  const billingModeMutation = useMutation({
+    mutationFn: (mode: 'credits' | 'byok') => aiCreditsApi.updateBillingMode(mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-credits-balance'] });
     },
   });
 
@@ -428,6 +454,11 @@ function AIProviderSettings() {
       setModelName(p.defaultModel);
       setBaseUrl(p.defaultUrl);
     }
+  };
+
+  const handleBillingModeChange = (mode: 'credits' | 'byok') => {
+    setBillingMode(mode);
+    billingModeMutation.mutate(mode);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -448,6 +479,12 @@ function AIProviderSettings() {
     }
   };
 
+  // Get models for current provider
+  const providerModels = modelsData?.models?.find((m: any) => m.provider === provider)?.models || [];
+
+  // Get pricing for currently selected model
+  const selectedPricing = modelsData?.pricing?.find((p: any) => p.model === modelName);
+
   return (
     <form onSubmit={handleSave} className="bg-white border border-gray-200 rounded-[7px] p-6">
       <div className="flex items-center gap-3 mb-6">
@@ -461,6 +498,40 @@ function AIProviderSettings() {
       </div>
 
       <div className="space-y-4 max-w-lg">
+        {/* Billing Mode */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Billing Mode</label>
+          <div className="space-y-2">
+            <label className={`flex items-center gap-3 p-3 border rounded-[7px] cursor-pointer transition-colors ${billingMode === 'credits' ? 'border-[#064A6C] bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
+              <input
+                type="radio"
+                name="billingMode"
+                checked={billingMode === 'credits'}
+                onChange={() => handleBillingModeChange('credits')}
+                className="accent-[#064A6C]"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Use hostsblue credits (pay-as-you-go)</span>
+                <p className="text-xs text-gray-500">No API key needed. We handle everything. Credits are refundable.</p>
+              </div>
+            </label>
+            <label className={`flex items-center gap-3 p-3 border rounded-[7px] cursor-pointer transition-colors ${billingMode === 'byok' ? 'border-[#064A6C] bg-teal-50' : 'border-gray-200 hover:border-gray-300'}`}>
+              <input
+                type="radio"
+                name="billingMode"
+                checked={billingMode === 'byok'}
+                onChange={() => handleBillingModeChange('byok')}
+                className="accent-[#064A6C]"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-900">Use my own API key (BYOK)</span>
+                <p className="text-xs text-gray-500">Bring your own key. You pay the provider directly.</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {/* Provider */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
           <select
@@ -474,27 +545,63 @@ function AIProviderSettings() {
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder="Enter your API key"
-            className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
-          />
-          <p className="text-xs text-gray-400 mt-1">Your API key is encrypted and stored securely</p>
-        </div>
+        {/* API Key — only in BYOK mode */}
+        {billingMode === 'byok' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={e => setApiKey(e.target.value)}
+              placeholder="Enter your API key"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
+            />
+            <p className="text-xs text-gray-400 mt-1">Your API key is encrypted and stored securely</p>
+          </div>
+        )}
 
+        {billingMode === 'credits' && (
+          <div className="bg-teal-50 border border-teal-200 rounded-[7px] p-3">
+            <p className="text-sm text-teal-800">
+              Balance: <span className="font-semibold">${((balance?.balanceCents || 0) / 100).toFixed(2)}</span>
+              {' '}&mdash;{' '}
+              <a href="/dashboard/billing" className="text-[#064A6C] underline hover:text-[#053C58]">
+                Manage credits
+              </a>
+            </p>
+          </div>
+        )}
+
+        {/* Model */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Model Name</label>
-          <input
-            type="text"
-            value={modelName}
-            onChange={e => setModelName(e.target.value)}
-            placeholder="e.g., deepseek-chat, gpt-4o, claude-sonnet-4-20250514"
-            className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
-          />
+          <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+          {provider !== 'custom' && providerModels.length > 0 ? (
+            <select
+              value={modelName}
+              onChange={e => setModelName(e.target.value)}
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
+            >
+              {providerModels.map((m: any) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}{m.recommended ? ' (Recommended)' : ''}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={modelName}
+              onChange={e => setModelName(e.target.value)}
+              placeholder="e.g., gpt-4o, custom-model-v1"
+              className="w-full border border-gray-200 rounded-[7px] p-3 text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#064A6C] focus:border-transparent text-sm"
+            />
+          )}
+          {/* Inline pricing in credits mode */}
+          {billingMode === 'credits' && selectedPricing && (
+            <p className="text-xs text-gray-500 mt-1">
+              Cost: ${(selectedPricing.inputPer1k * selectedPricing.margin).toFixed(4)}/1K input tokens, ${(selectedPricing.outputPer1k * selectedPricing.margin).toFixed(4)}/1K output tokens
+            </p>
+          )}
         </div>
 
         {(provider === 'custom' || provider === 'groq') && (
@@ -527,14 +634,16 @@ function AIProviderSettings() {
           {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saveMutation.isPending ? 'Saving...' : 'Save Settings'}
         </button>
-        <button
-          type="button"
-          onClick={handleTest}
-          disabled={testing || !apiKey}
-          className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-[7px] hover:bg-gray-50 transition-colors disabled:opacity-50"
-        >
-          {testing ? 'Testing...' : 'Test Connection'}
-        </button>
+        {billingMode === 'byok' && (
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={testing || !apiKey}
+            className="px-4 py-2 text-sm font-medium border border-gray-300 text-gray-700 rounded-[7px] hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {testing ? 'Testing...' : 'Test Connection'}
+          </button>
+        )}
         {saved && <span className="text-green-600 text-sm">Settings saved!</span>}
       </div>
     </form>

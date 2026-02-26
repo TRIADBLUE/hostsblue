@@ -14,6 +14,7 @@ import { OrderOrchestrator } from './services/order-orchestration.js';
 import { WebsiteAIService } from './services/website-ai.js';
 import { AIProviderFactory, testProviderConnection } from './services/ai-provider.js';
 import type { ProviderConfig } from './services/ai-provider.js';
+import { AiCreditsService } from './services/ai-credits.js';
 import { renderPage } from './services/website-renderer.js';
 import { encryptCredential, decryptCredential } from './services/wpmudev-integration.js';
 import { getTemplateById, templates as allTemplates } from '../shared/templates/index.js';
@@ -34,6 +35,7 @@ const createOrderSchema = z.object({
       'domain_registration', 'domain_transfer', 'domain_renewal',
       'hosting_plan', 'hosting_addon', 'privacy_protection',
       'email_service', 'ssl_certificate', 'sitelock', 'website_builder',
+      'ai_credits',
     ]),
     domain: z.string().optional(),
     tld: z.string().optional(),
@@ -74,6 +76,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   const opensrsSSL = new OpenSRSSSLIntegration();
   const sitelockService = new SiteLockIntegration();
   const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev, opensrsEmail, opensrsSSL, sitelockService);
+  const aiCreditsService = new AiCreditsService(db);
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
   // Rate limiters
@@ -948,6 +951,15 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
         price = (tld.privacyPrice || 0) * item.termYears;
         description = `WHOIS Privacy: ${item.domain}${item.tld} (${item.termYears} year${item.termYears > 1 ? 's' : ''})`;
         configuration = { domain: item.domain, tld: item.tld, domainId: item.options?.domainId };
+
+      } else if (item.type === 'ai_credits') {
+        const amountCents = item.options?.amountCents || 500;
+        if (amountCents < 500) {
+          return res.status(400).json(errorResponse('Minimum credit purchase is $5.00'));
+        }
+        price = amountCents;
+        description = `AI Credits: $${(amountCents / 100).toFixed(2)}`;
+        configuration = { amountCents };
       }
 
       subtotal += price;
@@ -1109,6 +1121,24 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     switch (event) {
       case 'payment.success':
         await orchestrator.handlePaymentSuccess(data.orderId, data);
+        // Handle AI credits fulfillment
+        try {
+          const creditOrder = await db.query.orders.findFirst({
+            where: eq(schema.orders.id, data.orderId),
+            with: { items: true },
+          });
+          if (creditOrder) {
+            for (const item of creditOrder.items) {
+              if (item.itemType === 'ai_credits') {
+                const config = item.configuration as any;
+                const amountCents = config?.amountCents || item.totalPrice;
+                await aiCreditsService.addCredits(creditOrder.customerId, amountCents, data.paymentReference, creditOrder.id);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('AI credits fulfillment error:', err);
+        }
         break;
         
       case 'payment.failed':
@@ -1801,18 +1831,45 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // WEBSITE BUILDER ROUTES
   // ============================================================================
 
-  // Helper: get AI service for current customer
-  async function getAIService(customerId: number): Promise<WebsiteAIService> {
+  // Helper: get platform API key for credits mode
+  function getPlatformApiKey(provider: string): string | undefined {
+    const envMap: Record<string, string> = {
+      deepseek: 'PLATFORM_DEEPSEEK_API_KEY',
+      openai: 'PLATFORM_OPENAI_API_KEY',
+      anthropic: 'PLATFORM_ANTHROPIC_API_KEY',
+      groq: 'PLATFORM_GROQ_API_KEY',
+      gemini: 'PLATFORM_GEMINI_API_KEY',
+    };
+    return process.env[envMap[provider] || ''];
+  }
+
+  // Helper: get AI service for current customer (supports credits + BYOK)
+  async function getAIService(customerId: number): Promise<{ ai: WebsiteAIService; billingMode: string; provider: string; modelName: string }> {
+    const balance = await aiCreditsService.getBalance(customerId);
     const settings = await db.query.aiProviderSettings.findFirst({
       where: and(eq(schema.aiProviderSettings.customerId, customerId), eq(schema.aiProviderSettings.isActive, true)),
     });
+
+    const provider = settings?.provider || 'deepseek';
+    const modelName = settings?.modelName || 'deepseek-chat';
     let config: ProviderConfig | null = null;
-    if (settings && settings.apiKey) {
-      let apiKey = settings.apiKey;
-      try { apiKey = decryptCredential(settings.apiKey); } catch { /* use as-is */ }
-      config = { provider: settings.provider as any, apiKey, modelName: settings.modelName || undefined, baseUrl: settings.baseUrl || undefined };
+
+    if (balance.billingMode === 'credits') {
+      // Credits mode: use platform API keys
+      const platformKey = getPlatformApiKey(provider);
+      if (platformKey) {
+        config = { provider: provider as any, apiKey: platformKey, modelName, baseUrl: settings?.baseUrl || undefined };
+      }
+    } else {
+      // BYOK mode: use customer's encrypted API key
+      if (settings && settings.apiKey) {
+        let apiKey = settings.apiKey;
+        try { apiKey = decryptCredential(settings.apiKey); } catch { /* use as-is */ }
+        config = { provider: provider as any, apiKey, modelName, baseUrl: settings?.baseUrl || undefined };
+      }
     }
-    return new WebsiteAIService(config);
+
+    return { ai: new WebsiteAIService(config), billingMode: balance.billingMode, provider, modelName };
   }
 
   // Helper: verify project ownership
@@ -2020,12 +2077,60 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   }));
 
   // ---- AI Endpoints ----
+  // Helper: log AI usage and deduct credits if applicable
+  async function logAiUsageAndDeduct(customerId: number, billingMode: string, provider: string, modelName: string, action: string, usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined, projectId?: number, startTime?: number) {
+    if (!usage || (usage.inputTokens === 0 && usage.outputTokens === 0)) return;
+
+    const cost = aiCreditsService.calculateCost(modelName, usage.inputTokens, usage.outputTokens);
+    const durationMs = startTime ? Date.now() - startTime : undefined;
+
+    // Log usage
+    const [log] = await db.insert(schema.aiUsageLogs).values({
+      customerId,
+      provider,
+      modelName,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      inputCostCents: cost.inputCostCents,
+      outputCostCents: cost.outputCostCents,
+      totalCostCents: cost.totalCostCents,
+      marginCents: cost.marginCents,
+      action,
+      projectId: projectId ?? null,
+      billingMode,
+      durationMs: durationMs ?? null,
+      success: true,
+    }).returning();
+
+    // Deduct credits if in credits mode
+    if (billingMode === 'credits' && cost.totalCostCents > 0) {
+      await aiCreditsService.deductCredits({
+        customerId,
+        amountCents: cost.totalCostCents,
+        description: `${action} — ${modelName} (${usage.totalTokens} tokens)`,
+        aiUsageLogId: log.id,
+        metadata: { provider, modelName, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens },
+      });
+      // Check auto-top-up
+      await aiCreditsService.checkAutoTopup(customerId);
+    }
+  }
+
   app.post('/api/v1/website-builder/projects/:uuid/ai/generate', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
 
-    const ai = await getAIService(req.user!.userId);
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    // Check credits before proceeding
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 5); // estimate ~5 cents
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
     const { businessName, businessType, businessDescription, style, selectedPages } = req.body;
+    const startTime = Date.now();
 
     const result = await ai.generateWebsite({
       businessName: businessName || project.name,
@@ -2034,6 +2139,9 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       style,
       selectedPages,
     });
+
+    // Log usage and deduct credits
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'generate_website', result.usage, project.id, startTime);
 
     // Save theme to project
     await db.update(schema.websiteProjects).set({
@@ -2066,7 +2174,13 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
 
-    const ai = await getAIService(req.user!.userId);
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 2);
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
     const pages = await db.query.websitePages.findMany({
       where: eq(schema.websitePages.projectId, project.id),
       orderBy: schema.websitePages.sortOrder,
@@ -2079,7 +2193,10 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       pages: pages.map(p => ({ slug: p.slug, title: p.title, blocks: (p.blocks || []) as any[] })),
     };
 
+    const startTime = Date.now();
     const result = await ai.coachChat(message, siteContext, history || []);
+
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'coach_chat', result.usage, project.id, startTime);
 
     // Store in AI session
     let session = await db.query.websiteAiSessions.findFirst({
@@ -2105,9 +2222,19 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
 
-    const ai = await getAIService(req.user!.userId);
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 1);
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
     const { type } = req.body;
+    const startTime = Date.now();
     const block = await ai.generateBlock(type, { businessName: project.name, businessType: project.businessType || 'business' });
+
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'generate_block', (block as any).usage, project.id, startTime);
+
     res.json(successResponse(block));
   }));
 
@@ -2115,9 +2242,19 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
 
-    const ai = await getAIService(req.user!.userId);
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 1);
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
     const { block, instruction } = req.body;
+    const startTime = Date.now();
     const result = await ai.rewriteContent(block, instruction);
+
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'rewrite_content', (result as any).usage, project.id, startTime);
+
     res.json(successResponse(result));
   }));
 
@@ -2162,6 +2299,100 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     const { provider, apiKey, modelName, baseUrl } = req.body;
     const result = await testProviderConnection({ provider, apiKey, modelName, baseUrl });
     res.json(successResponse(result));
+  }));
+
+  // ---- AI Models ----
+  app.get('/api/v1/ai/models', authenticateToken, requireAuth, asyncHandler(async (_req, res) => {
+    res.json(successResponse({
+      models: aiCreditsService.getAvailableModels(),
+      pricing: aiCreditsService.getModelPricing(),
+    }));
+  }));
+
+  // ---- AI Credits / Billing ----
+  app.get('/api/v1/ai/credits/balance', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const balance = await aiCreditsService.getBalance(req.user!.userId);
+    res.json(successResponse(balance));
+  }));
+
+  app.post('/api/v1/ai/credits/purchase', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { amountCents } = req.body;
+    if (!amountCents || amountCents < 500) {
+      return res.status(400).json(errorResponse('Minimum purchase is $5.00 (500 cents)'));
+    }
+
+    // Create order through the existing pipeline
+    const orderNumber = `HB${Date.now().toString(36).toUpperCase()}`;
+    const [order] = await db.insert(schema.orders).values({
+      customerId: req.user!.userId,
+      orderNumber,
+      status: 'draft',
+      subtotal: amountCents,
+      discountAmount: 0,
+      taxAmount: 0,
+      total: amountCents,
+      currency: 'USD',
+    }).returning();
+
+    await db.insert(schema.orderItems).values({
+      orderId: order.id,
+      itemType: 'ai_credits',
+      description: `AI Credits: $${(amountCents / 100).toFixed(2)}`,
+      unitPrice: amountCents,
+      quantity: 1,
+      totalPrice: amountCents,
+      configuration: { amountCents },
+    });
+
+    res.status(201).json(successResponse({ order }));
+  }));
+
+  app.get('/api/v1/ai/credits/transactions', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const transactions = await aiCreditsService.getTransactions(req.user!.userId, limit, offset);
+    res.json(successResponse(transactions));
+  }));
+
+  app.get('/api/v1/ai/credits/usage/daily', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+    const usage = await aiCreditsService.getDailyUsage(req.user!.userId, days);
+    res.json(successResponse(usage));
+  }));
+
+  app.get('/api/v1/ai/credits/usage/models', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+    const breakdown = await aiCreditsService.getModelBreakdown(req.user!.userId, days);
+    res.json(successResponse(breakdown));
+  }));
+
+  app.put('/api/v1/ai/credits/auto-topup', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { enabled, thresholdCents, amountCents } = req.body;
+    const balance = await aiCreditsService.updateAutoTopupSettings(req.user!.userId, {
+      enabled: !!enabled,
+      thresholdCents,
+      amountCents,
+    });
+    res.json(successResponse(balance));
+  }));
+
+  app.put('/api/v1/ai/credits/spending-limit', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { limitCents, period } = req.body;
+    const balance = await aiCreditsService.updateSpendingLimit(
+      req.user!.userId,
+      limitCents === null || limitCents === undefined ? null : parseInt(limitCents),
+      period || 'monthly',
+    );
+    res.json(successResponse(balance));
+  }));
+
+  app.put('/api/v1/ai/credits/billing-mode', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { mode } = req.body;
+    if (mode !== 'credits' && mode !== 'byok') {
+      return res.status(400).json(errorResponse('Mode must be "credits" or "byok"'));
+    }
+    const balance = await aiCreditsService.updateBillingMode(req.user!.userId, mode);
+    res.json(successResponse(balance));
   }));
 
   // ---- Publishing ----

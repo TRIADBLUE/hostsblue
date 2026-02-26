@@ -72,6 +72,15 @@ export const orderItemTypeEnum = pgEnum('order_item_type', [
   'ssl_certificate',
   'sitelock',
   'website_builder',
+  'ai_credits',
+]);
+
+export const aiCreditTransactionTypeEnum = pgEnum('ai_credit_transaction_type', [
+  'purchase',
+  'ai_usage',
+  'refund',
+  'auto_topup',
+  'adjustment',
 ]);
 
 export const tldCategoryEnum = pgEnum('tld_category', [
@@ -1096,6 +1105,96 @@ export const ticketMessagesRelations = relations(ticketMessages, ({ one }) => ({
 }));
 
 // ============================================================================
+// AI CREDIT BALANCES
+// ============================================================================
+
+export const aiCreditBalances = pgTable('ai_credit_balances', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull().unique(),
+  balanceCents: integer('balance_cents').default(0).notNull(),
+  totalPurchasedCents: integer('total_purchased_cents').default(0).notNull(),
+  totalUsedCents: integer('total_used_cents').default(0).notNull(),
+  autoTopupEnabled: boolean('auto_topup_enabled').default(false).notNull(),
+  autoTopupThresholdCents: integer('auto_topup_threshold_cents').default(100).notNull(),
+  autoTopupAmountCents: integer('auto_topup_amount_cents').default(500).notNull(),
+  spendingLimitCents: integer('spending_limit_cents'),
+  spendingLimitPeriod: varchar('spending_limit_period', { length: 20 }).default('monthly').notNull(),
+  currentPeriodUsageCents: integer('current_period_usage_cents').default(0).notNull(),
+  periodResetAt: timestamp('period_reset_at'),
+  billingMode: varchar('billing_mode', { length: 10 }).default('credits').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: uniqueIndex('ai_credit_balances_customer_idx').on(table.customerId),
+}));
+
+export const aiCreditBalancesRelations = relations(aiCreditBalances, ({ one }) => ({
+  customer: one(customers, { fields: [aiCreditBalances.customerId], references: [customers.id] }),
+}));
+
+// ============================================================================
+// AI CREDIT TRANSACTIONS
+// ============================================================================
+
+export const aiCreditTransactions = pgTable('ai_credit_transactions', {
+  id: serial('id').primaryKey(),
+  uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  type: aiCreditTransactionTypeEnum('type').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  balanceAfterCents: integer('balance_after_cents').notNull(),
+  description: varchar('description', { length: 255 }).notNull(),
+  aiUsageLogId: integer('ai_usage_log_id'),
+  paymentReference: varchar('payment_reference', { length: 255 }),
+  orderId: integer('order_id').references(() => orders.id),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: index('ai_credit_transactions_customer_idx').on(table.customerId),
+  typeIdx: index('ai_credit_transactions_type_idx').on(table.type),
+  createdIdx: index('ai_credit_transactions_created_idx').on(table.createdAt),
+}));
+
+export const aiCreditTransactionsRelations = relations(aiCreditTransactions, ({ one }) => ({
+  customer: one(customers, { fields: [aiCreditTransactions.customerId], references: [customers.id] }),
+  order: one(orders, { fields: [aiCreditTransactions.orderId], references: [orders.id] }),
+}));
+
+// ============================================================================
+// AI USAGE LOGS
+// ============================================================================
+
+export const aiUsageLogs = pgTable('ai_usage_logs', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  provider: varchar('provider', { length: 20 }).notNull(),
+  modelName: varchar('model_name', { length: 100 }).notNull(),
+  inputTokens: integer('input_tokens').default(0).notNull(),
+  outputTokens: integer('output_tokens').default(0).notNull(),
+  totalTokens: integer('total_tokens').default(0).notNull(),
+  inputCostCents: integer('input_cost_cents').default(0).notNull(),
+  outputCostCents: integer('output_cost_cents').default(0).notNull(),
+  totalCostCents: integer('total_cost_cents').default(0).notNull(),
+  marginCents: integer('margin_cents').default(0).notNull(),
+  action: varchar('action', { length: 50 }).notNull(),
+  projectId: integer('project_id').references(() => websiteProjects.id),
+  billingMode: varchar('billing_mode', { length: 10 }).notNull(),
+  durationMs: integer('duration_ms'),
+  success: boolean('success').default(true).notNull(),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: index('ai_usage_logs_customer_idx').on(table.customerId),
+  providerIdx: index('ai_usage_logs_provider_idx').on(table.provider),
+  createdIdx: index('ai_usage_logs_created_idx').on(table.createdAt),
+}));
+
+export const aiUsageLogsRelations = relations(aiUsageLogs, ({ one }) => ({
+  customer: one(customers, { fields: [aiUsageLogs.customerId], references: [customers.id] }),
+  project: one(websiteProjects, { fields: [aiUsageLogs.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
 // ZOD SCHEMAS
 // ============================================================================
 
@@ -1135,6 +1234,12 @@ export const insertSupportTicketSchema = createInsertSchema(supportTickets);
 export const selectSupportTicketSchema = createSelectSchema(supportTickets);
 export const insertTicketMessageSchema = createInsertSchema(ticketMessages);
 export const selectTicketMessageSchema = createSelectSchema(ticketMessages);
+export const insertAiCreditBalanceSchema = createInsertSchema(aiCreditBalances);
+export const selectAiCreditBalanceSchema = createSelectSchema(aiCreditBalances);
+export const insertAiCreditTransactionSchema = createInsertSchema(aiCreditTransactions);
+export const selectAiCreditTransactionSchema = createSelectSchema(aiCreditTransactions);
+export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogs);
+export const selectAiUsageLogSchema = createSelectSchema(aiUsageLogs);
 
 // ============================================================================
 // TYPE EXPORTS
@@ -1211,3 +1316,11 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type NewSupportTicket = typeof supportTickets.$inferInsert;
 export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type NewTicketMessage = typeof ticketMessages.$inferInsert;
+
+// AI Credits types
+export type AiCreditBalance = typeof aiCreditBalances.$inferSelect;
+export type NewAiCreditBalance = typeof aiCreditBalances.$inferInsert;
+export type AiCreditTransaction = typeof aiCreditTransactions.$inferSelect;
+export type NewAiCreditTransaction = typeof aiCreditTransactions.$inferInsert;
+export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
+export type NewAiUsageLog = typeof aiUsageLogs.$inferInsert;

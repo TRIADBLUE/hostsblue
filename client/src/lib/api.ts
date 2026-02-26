@@ -185,6 +185,25 @@ export const aiSettingsApi = {
   get: () => fetchApi<any>('/ai/settings'),
   save: (data: any) => fetchApi<any>('/ai/settings', { method: 'PUT', body: JSON.stringify(data) }),
   test: (data: any) => fetchApi<any>('/ai/settings/test', { method: 'POST', body: JSON.stringify(data) }),
+  getModels: () => fetchApi<any>('/ai/models'),
+};
+
+export const aiCreditsApi = {
+  getBalance: () => fetchApi<any>('/ai/credits/balance'),
+  purchase: (amountCents: number) =>
+    fetchApi<any>('/ai/credits/purchase', { method: 'POST', body: JSON.stringify({ amountCents }) }),
+  getTransactions: (limit = 20, offset = 0) =>
+    fetchApi<any[]>(`/ai/credits/transactions?limit=${limit}&offset=${offset}`),
+  getDailyUsage: (days = 30) =>
+    fetchApi<any[]>(`/ai/credits/usage/daily?days=${days}`),
+  getModelBreakdown: (days = 30) =>
+    fetchApi<any[]>(`/ai/credits/usage/models?days=${days}`),
+  updateAutoTopup: (data: { enabled: boolean; thresholdCents?: number; amountCents?: number }) =>
+    fetchApi<any>('/ai/credits/auto-topup', { method: 'PUT', body: JSON.stringify(data) }),
+  updateSpendingLimit: (data: { limitCents: number | null; period?: string }) =>
+    fetchApi<any>('/ai/credits/spending-limit', { method: 'PUT', body: JSON.stringify(data) }),
+  updateBillingMode: (mode: 'credits' | 'byok') =>
+    fetchApi<any>('/ai/credits/billing-mode', { method: 'PUT', body: JSON.stringify({ mode }) }),
 };
 
 export const supportApi = {
