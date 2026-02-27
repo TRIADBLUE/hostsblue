@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Monitor, Tablet, Smartphone, Palette, MessageSquare, Eye, Upload, Save, Loader2, Plus, ChevronDown, Check } from 'lucide-react';
+import { ArrowLeft, Monitor, Tablet, Smartphone, Palette, MessageSquare, Search, Eye, Upload, Save, Loader2, Plus, ChevronDown, Check } from 'lucide-react';
 import { useEditor } from './editor-context';
 import { websiteBuilderApi } from '@/lib/api';
 
@@ -141,6 +141,13 @@ export function EditorTopBar() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: state.rightPanel === 'seo' ? null : 'seo' })}
+          className={`p-2 rounded-[7px] transition-colors ${state.rightPanel === 'seo' ? 'bg-[#064A6C]/10 text-[#064A6C]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+          title="SEO"
+        >
+          <Search className="w-4 h-4" />
+        </button>
         <button
           onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: state.rightPanel === 'theme' ? null : 'theme' })}
           className={`p-2 rounded-[7px] transition-colors ${state.rightPanel === 'theme' ? 'bg-[#064A6C]/10 text-[#064A6C]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}

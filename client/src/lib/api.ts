@@ -179,6 +179,34 @@ export const websiteBuilderApi = {
   aiChat: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/chat`, { method: 'POST', body: JSON.stringify(data) }),
   aiGenerateBlock: (uuid: string, type: string) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate-block`, { method: 'POST', body: JSON.stringify({ type }) }),
   aiRewrite: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/rewrite`, { method: 'POST', body: JSON.stringify(data) }),
+  aiGenerateSeo: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate-seo`, { method: 'POST', body: JSON.stringify(data) }),
+  // Form submissions
+  getSubmissions: (uuid: string) => fetchApi<any[]>(`/website-builder/projects/${uuid}/submissions`),
+  deleteSubmission: (uuid: string, id: number) => fetchApi<void>(`/website-builder/projects/${uuid}/submissions/${id}`, { method: 'DELETE' }),
+  // Plan
+  getPlan: () => fetchApi<any>('/website-builder/plan'),
+  // Analytics
+  getAnalytics: (uuid: string, days = 30) => fetchApi<any>(`/website-builder/projects/${uuid}/analytics?days=${days}`),
+  // Domain
+  setDomain: (uuid: string, domain: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain`, { method: 'PATCH', body: JSON.stringify({ domain }) }),
+  verifyDomain: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain/verify`, { method: 'POST' }),
+  // Settings
+  updateSettings: (uuid: string, settings: any) => fetchApi<any>(`/website-builder/projects/${uuid}/settings`, { method: 'PATCH', body: JSON.stringify(settings) }),
+};
+
+export const storeApi = {
+  getSettings: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/store/settings`),
+  updateSettings: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/store/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+  getProducts: (uuid: string) => fetchApi<any[]>(`/website-builder/projects/${uuid}/store/products`),
+  createProduct: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/store/products`, { method: 'POST', body: JSON.stringify(data) }),
+  getProduct: (uuid: string, productUuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/store/products/${productUuid}`),
+  updateProduct: (uuid: string, productUuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/store/products/${productUuid}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteProduct: (uuid: string, productUuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/store/products/${productUuid}`, { method: 'DELETE' }),
+  getCategories: (uuid: string) => fetchApi<any[]>(`/website-builder/projects/${uuid}/store/categories`),
+  createCategory: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/store/categories`, { method: 'POST', body: JSON.stringify(data) }),
+  getOrders: (uuid: string) => fetchApi<any[]>(`/website-builder/projects/${uuid}/store/orders`),
+  getOrder: (uuid: string, orderUuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/store/orders/${orderUuid}`),
+  updateOrderStatus: (uuid: string, orderUuid: string, status: string) => fetchApi<any>(`/website-builder/projects/${uuid}/store/orders/${orderUuid}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 };
 
 export const aiSettingsApi = {

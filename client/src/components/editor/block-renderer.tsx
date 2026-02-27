@@ -7,6 +7,8 @@ import {
   FAQBlockEditor, PricingBlockEditor, TeamBlockEditor, StatsBlockEditor,
   GalleryBlockEditor, LogoCloudBlockEditor, ImageBlockEditor,
 } from './blocks/common-blocks';
+import { CustomCodeBlockEditor } from './blocks/custom-code-block';
+import { ProductGridBlockEditor, ProductDetailBlockEditor } from './blocks/product-blocks';
 
 interface BlockRendererProps {
   block: WebsiteBlock;
@@ -33,6 +35,9 @@ export function BlockRenderer({ block, isActive, onUpdate }: BlockRendererProps)
     case 'stats': return <StatsBlockEditor {...props} />;
     case 'logo-cloud': return <LogoCloudBlockEditor {...props} />;
     case 'footer': return <FooterBlockEditor {...props} />;
+    case 'custom-code': return <CustomCodeBlockEditor {...props} />;
+    case 'product-grid': return <ProductGridBlockEditor {...props} />;
+    case 'product-detail': return <ProductDetailBlockEditor {...props} />;
     default:
       return <div className="p-4 bg-gray-100 rounded text-gray-500 text-sm">Unknown block type: {block.type}</div>;
   }

@@ -7,6 +7,7 @@ import { BlockToolbar } from '@/components/editor/block-toolbar';
 import { PropertiesPanel } from '@/components/editor/properties-panel';
 import { ThemePanel } from '@/components/editor/theme-panel';
 import { AICoachPanel } from '@/components/editor/ai-coach-panel';
+import { SEOPanel } from '@/components/editor/seo-panel';
 
 function EditorLayout() {
   const { state } = useEditor();
@@ -28,6 +29,7 @@ function EditorLayout() {
         {state.rightPanel === 'properties' && <PropertiesPanel />}
         {state.rightPanel === 'theme' && <ThemePanel />}
         {state.rightPanel === 'ai-coach' && <AICoachPanel />}
+        {state.rightPanel === 'seo' && <SEOPanel />}
       </div>
     </div>
   );

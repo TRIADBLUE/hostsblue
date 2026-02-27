@@ -281,6 +281,72 @@ function renderBlockFields(block: any, update: (data: Record<string, any>) => vo
         </>
       );
 
+    case 'custom-code':
+      return (
+        <>
+          <SelectField label="Position" value={d.position || 'inline'} onChange={v => update({ position: v })} options={[
+            { label: 'Inline (in page)', value: 'inline' },
+            { label: 'Head (<head> tag)', value: 'head' },
+            { label: 'Body End (before </body>)', value: 'body-end' },
+          ]} />
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">HTML</label>
+            <textarea
+              value={d.html || ''}
+              onChange={e => update({ html: e.target.value })}
+              rows={4}
+              className="w-full border border-gray-200 rounded-[7px] px-3 py-2 text-xs font-mono bg-gray-900 text-green-400 focus:outline-none focus:ring-1 focus:ring-[#064A6C] resize-vertical"
+              placeholder="<div>Your HTML here...</div>"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">CSS</label>
+            <textarea
+              value={d.css || ''}
+              onChange={e => update({ css: e.target.value })}
+              rows={3}
+              className="w-full border border-gray-200 rounded-[7px] px-3 py-2 text-xs font-mono bg-gray-900 text-blue-400 focus:outline-none focus:ring-1 focus:ring-[#064A6C] resize-vertical"
+              placeholder=".my-class { color: red; }"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">JavaScript</label>
+            <textarea
+              value={d.js || ''}
+              onChange={e => update({ js: e.target.value })}
+              rows={3}
+              className="w-full border border-gray-200 rounded-[7px] px-3 py-2 text-xs font-mono bg-gray-900 text-yellow-400 focus:outline-none focus:ring-1 focus:ring-[#064A6C] resize-vertical"
+              placeholder="console.log('Hello');"
+            />
+          </div>
+        </>
+      );
+
+    case 'product-grid':
+      return (
+        <>
+          <TextField label="Heading" value={d.heading} onChange={v => update({ heading: v })} />
+          <SelectField label="Columns" value={String(d.columns || 3)} onChange={v => update({ columns: parseInt(v) })} options={[
+            { label: '2', value: '2' }, { label: '3', value: '3' }, { label: '4', value: '4' },
+          ]} />
+          <TextField label="Max Products" value={String(d.maxProducts || 12)} onChange={v => update({ maxProducts: parseInt(v) || 12 })} />
+          <TextField label="Category Slug (optional)" value={d.categorySlug || ''} onChange={v => update({ categorySlug: v })} />
+          <FieldRow label="Show Price">
+            <input
+              type="checkbox"
+              checked={d.showPrice !== false}
+              onChange={e => update({ showPrice: e.target.checked })}
+              className="accent-[#064A6C]"
+            />
+          </FieldRow>
+        </>
+      );
+
+    case 'product-detail':
+      return (
+        <TextField label="Product Slug" value={d.productSlug || ''} onChange={v => update({ productSlug: v })} />
+      );
+
     default:
       return <p className="text-xs text-gray-400">No properties available</p>;
   }

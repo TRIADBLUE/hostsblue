@@ -1059,6 +1059,246 @@ export const aiProviderSettingsRelations = relations(aiProviderSettings, ({ one 
 }));
 
 // ============================================================================
+// FORM SUBMISSIONS (Website Builder)
+// ============================================================================
+
+export const formSubmissions = pgTable('form_submissions', {
+  id: serial('id').primaryKey(),
+  uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  pageSlug: varchar('page_slug', { length: 100 }),
+  name: varchar('name', { length: 200 }),
+  email: varchar('email', { length: 255 }),
+  message: text('message'),
+  data: jsonb('data').default({}),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('form_submissions_project_idx').on(table.projectId),
+  createdAtIdx: index('form_submissions_created_idx').on(table.createdAt),
+}));
+
+export const formSubmissionsRelations = relations(formSubmissions, ({ one }) => ({
+  project: one(websiteProjects, { fields: [formSubmissions.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// BUILDER SUBSCRIPTIONS
+// ============================================================================
+
+export const builderSubscriptions = pgTable('builder_subscriptions', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  plan: varchar('plan', { length: 20 }).default('starter').notNull(),
+  status: varchar('status', { length: 20 }).default('active').notNull(),
+  maxSites: integer('max_sites').default(1).notNull(),
+  maxPagesPerSite: integer('max_pages_per_site').default(5).notNull(),
+  features: jsonb('features').default([]),
+  orderId: integer('order_id').references(() => orders.id),
+  startsAt: timestamp('starts_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: uniqueIndex('builder_sub_customer_idx').on(table.customerId),
+}));
+
+export const builderSubscriptionsRelations = relations(builderSubscriptions, ({ one }) => ({
+  customer: one(customers, { fields: [builderSubscriptions.customerId], references: [customers.id] }),
+  order: one(orders, { fields: [builderSubscriptions.orderId], references: [orders.id] }),
+}));
+
+// ============================================================================
+// SITE ANALYTICS
+// ============================================================================
+
+export const siteAnalytics = pgTable('site_analytics', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  pageSlug: varchar('page_slug', { length: 100 }),
+  sessionId: varchar('session_id', { length: 64 }),
+  referrer: varchar('referrer', { length: 500 }),
+  device: varchar('device', { length: 20 }),
+  browser: varchar('browser', { length: 50 }),
+  country: varchar('country', { length: 2 }),
+  visitedAt: timestamp('visited_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('site_analytics_project_idx').on(table.projectId),
+  visitedAtIdx: index('site_analytics_visited_idx').on(table.visitedAt),
+}));
+
+export const siteAnalyticsRelations = relations(siteAnalytics, ({ one }) => ({
+  project: one(websiteProjects, { fields: [siteAnalytics.projectId], references: [websiteProjects.id] }),
+}));
+
+export const siteAnalyticsDaily = pgTable('site_analytics_daily', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  date: varchar('date', { length: 10 }).notNull(), // YYYY-MM-DD
+  pageviews: integer('pageviews').default(0).notNull(),
+  uniqueVisitors: integer('unique_visitors').default(0).notNull(),
+  topPages: jsonb('top_pages').default([]),
+  topReferrers: jsonb('top_referrers').default([]),
+  devices: jsonb('devices').default({}),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  projectDateIdx: uniqueIndex('site_analytics_daily_project_date_idx').on(table.projectId, table.date),
+}));
+
+export const siteAnalyticsDailyRelations = relations(siteAnalyticsDaily, ({ one }) => ({
+  project: one(websiteProjects, { fields: [siteAnalyticsDaily.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// STORE SETTINGS
+// ============================================================================
+
+export const storeSettings = pgTable('store_settings', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD').notNull(),
+  taxRate: decimal('tax_rate', { precision: 5, scale: 2 }).default('0').notNull(),
+  shippingOptions: jsonb('shipping_options').default([]),
+  paymentEnabled: boolean('payment_enabled').default(false).notNull(),
+  stripePublishableKey: varchar('stripe_publishable_key', { length: 255 }),
+  stripeSecretKey: text('stripe_secret_key'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: uniqueIndex('store_settings_project_idx').on(table.projectId),
+}));
+
+export const storeSettingsRelations = relations(storeSettings, ({ one }) => ({
+  project: one(websiteProjects, { fields: [storeSettings.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// STORE PRODUCTS
+// ============================================================================
+
+export const storeProducts = pgTable('store_products', {
+  id: serial('id').primaryKey(),
+  uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 200 }).notNull(),
+  slug: varchar('slug', { length: 200 }).notNull(),
+  description: text('description'),
+  price: integer('price').notNull(), // in cents
+  compareAtPrice: integer('compare_at_price'),
+  images: jsonb('images').default([]),
+  variants: jsonb('variants').default([]),
+  inventory: integer('inventory'),
+  categoryId: integer('category_id'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('store_products_project_idx').on(table.projectId),
+  projectSlugIdx: uniqueIndex('store_products_project_slug_idx').on(table.projectId, table.slug),
+}));
+
+export const storeProductsRelations = relations(storeProducts, ({ one }) => ({
+  project: one(websiteProjects, { fields: [storeProducts.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// STORE CATEGORIES
+// ============================================================================
+
+export const storeCategories = pgTable('store_categories', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  slug: varchar('slug', { length: 100 }).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('store_categories_project_idx').on(table.projectId),
+}));
+
+export const storeCategoriesRelations = relations(storeCategories, ({ one }) => ({
+  project: one(websiteProjects, { fields: [storeCategories.projectId], references: [websiteProjects.id] }),
+}));
+
+// ============================================================================
+// STORE ORDERS
+// ============================================================================
+
+export const storeOrders = pgTable('store_orders', {
+  id: serial('id').primaryKey(),
+  uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  orderNumber: varchar('order_number', { length: 50 }).notNull(),
+  status: varchar('status', { length: 20 }).default('pending').notNull(),
+  customerEmail: varchar('customer_email', { length: 255 }).notNull(),
+  customerName: varchar('customer_name', { length: 200 }),
+  shippingAddress: jsonb('shipping_address'),
+  subtotal: integer('subtotal').default(0).notNull(),
+  tax: integer('tax').default(0).notNull(),
+  shipping: integer('shipping').default(0).notNull(),
+  total: integer('total').default(0).notNull(),
+  paymentReference: varchar('payment_reference', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('store_orders_project_idx').on(table.projectId),
+  orderNumberIdx: uniqueIndex('store_orders_number_idx').on(table.orderNumber),
+}));
+
+export const storeOrdersRelations = relations(storeOrders, ({ one, many }) => ({
+  project: one(websiteProjects, { fields: [storeOrders.projectId], references: [websiteProjects.id] }),
+  items: many(storeOrderItems),
+}));
+
+// ============================================================================
+// STORE ORDER ITEMS
+// ============================================================================
+
+export const storeOrderItems = pgTable('store_order_items', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').references(() => storeOrders.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer('product_id').references(() => storeProducts.id),
+  productName: varchar('product_name', { length: 200 }).notNull(),
+  quantity: integer('quantity').default(1).notNull(),
+  unitPrice: integer('unit_price').notNull(),
+  totalPrice: integer('total_price').notNull(),
+  variant: jsonb('variant'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  orderIdx: index('store_order_items_order_idx').on(table.orderId),
+}));
+
+export const storeOrderItemsRelations = relations(storeOrderItems, ({ one }) => ({
+  order: one(storeOrders, { fields: [storeOrderItems.orderId], references: [storeOrders.id] }),
+  product: one(storeProducts, { fields: [storeOrderItems.productId], references: [storeProducts.id] }),
+}));
+
+// ============================================================================
+// AGENCY CLIENTS
+// ============================================================================
+
+export const agencyClients = pgTable('agency_clients', {
+  id: serial('id').primaryKey(),
+  agencyCustomerId: integer('agency_customer_id').references(() => customers.id).notNull(),
+  clientCustomerId: integer('client_customer_id').references(() => customers.id),
+  clientEmail: varchar('client_email', { length: 255 }).notNull(),
+  inviteToken: varchar('invite_token', { length: 64 }),
+  inviteStatus: varchar('invite_status', { length: 20 }).default('pending').notNull(), // pending, accepted, revoked
+  permissions: jsonb('permissions').default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  agencyIdx: index('agency_clients_agency_idx').on(table.agencyCustomerId),
+  clientIdx: index('agency_clients_client_idx').on(table.clientCustomerId),
+  tokenIdx: uniqueIndex('agency_clients_token_idx').on(table.inviteToken),
+}));
+
+export const agencyClientsRelations = relations(agencyClients, ({ one }) => ({
+  agency: one(customers, { fields: [agencyClients.agencyCustomerId], references: [customers.id] }),
+  client: one(customers, { fields: [agencyClients.clientCustomerId], references: [customers.id] }),
+}));
+
+// ============================================================================
 // SUPPORT TICKETS
 // ============================================================================
 
@@ -1324,3 +1564,33 @@ export type AiCreditTransaction = typeof aiCreditTransactions.$inferSelect;
 export type NewAiCreditTransaction = typeof aiCreditTransactions.$inferInsert;
 export type AiUsageLog = typeof aiUsageLogs.$inferSelect;
 export type NewAiUsageLog = typeof aiUsageLogs.$inferInsert;
+
+// Form submission types
+export type FormSubmission = typeof formSubmissions.$inferSelect;
+export type NewFormSubmission = typeof formSubmissions.$inferInsert;
+
+// Builder subscription types
+export type BuilderSubscription = typeof builderSubscriptions.$inferSelect;
+export type NewBuilderSubscription = typeof builderSubscriptions.$inferInsert;
+
+// Site analytics types
+export type SiteAnalytic = typeof siteAnalytics.$inferSelect;
+export type NewSiteAnalytic = typeof siteAnalytics.$inferInsert;
+export type SiteAnalyticDaily = typeof siteAnalyticsDaily.$inferSelect;
+export type NewSiteAnalyticDaily = typeof siteAnalyticsDaily.$inferInsert;
+
+// Store types
+export type StoreSettingsRow = typeof storeSettings.$inferSelect;
+export type NewStoreSettings = typeof storeSettings.$inferInsert;
+export type StoreProduct = typeof storeProducts.$inferSelect;
+export type NewStoreProduct = typeof storeProducts.$inferInsert;
+export type StoreCategory = typeof storeCategories.$inferSelect;
+export type NewStoreCategory = typeof storeCategories.$inferInsert;
+export type StoreOrder = typeof storeOrders.$inferSelect;
+export type NewStoreOrder = typeof storeOrders.$inferInsert;
+export type StoreOrderItem = typeof storeOrderItems.$inferSelect;
+export type NewStoreOrderItem = typeof storeOrderItems.$inferInsert;
+
+// Agency types
+export type AgencyClient = typeof agencyClients.$inferSelect;
+export type NewAgencyClient = typeof agencyClients.$inferInsert;

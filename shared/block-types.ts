@@ -29,6 +29,7 @@ export const defaultBlockStyle: BlockStyle = {
 export const BLOCK_TYPES = [
   'header', 'hero', 'text', 'image', 'features', 'cta', 'testimonials',
   'pricing', 'faq', 'gallery', 'contact', 'team', 'stats', 'logo-cloud', 'footer',
+  'custom-code', 'product-grid', 'product-detail',
 ] as const;
 
 export type BlockType = typeof BLOCK_TYPES[number];
@@ -205,6 +206,31 @@ export const footerBlockSchema = z.object({
 });
 export type FooterBlock = z.infer<typeof footerBlockSchema>;
 
+// ---- Custom Code ----
+export const customCodeBlockSchema = z.object({
+  html: z.string().default(''),
+  css: z.string().default(''),
+  js: z.string().default(''),
+  position: z.enum(['inline', 'head', 'body-end']).default('inline'),
+});
+export type CustomCodeBlock = z.infer<typeof customCodeBlockSchema>;
+
+// ---- Product Grid ----
+export const productGridBlockSchema = z.object({
+  heading: z.string().default('Our Products'),
+  columns: z.number().min(2).max(4).default(3),
+  maxProducts: z.number().default(12),
+  categorySlug: z.string().optional(),
+  showPrice: z.boolean().default(true),
+});
+export type ProductGridBlock = z.infer<typeof productGridBlockSchema>;
+
+// ---- Product Detail ----
+export const productDetailBlockSchema = z.object({
+  productSlug: z.string().default(''),
+});
+export type ProductDetailBlock = z.infer<typeof productDetailBlockSchema>;
+
 // ============================================================================
 // UNIFIED BLOCK SCHEMA
 // ============================================================================
@@ -225,6 +251,9 @@ export const blockDataSchemaMap = {
   stats: statsBlockSchema,
   'logo-cloud': logoCloudBlockSchema,
   footer: footerBlockSchema,
+  'custom-code': customCodeBlockSchema,
+  'product-grid': productGridBlockSchema,
+  'product-detail': productDetailBlockSchema,
 } as const;
 
 export const websiteBlockSchema = z.object({
@@ -403,6 +432,21 @@ export function createDefaultBlock(type: BlockType): WebsiteBlock {
       copyright: `© ${new Date().getFullYear()} My Website. All rights reserved.`,
       socialLinks: [],
     }),
+    'custom-code': () => ({
+      html: '',
+      css: '',
+      js: '',
+      position: 'inline',
+    }),
+    'product-grid': () => ({
+      heading: 'Our Products',
+      columns: 3,
+      maxProducts: 12,
+      showPrice: true,
+    }),
+    'product-detail': () => ({
+      productSlug: '',
+    }),
   };
 
   return {
@@ -431,8 +475,12 @@ export const BLOCK_CATEGORIES = [
     types: ['features', 'testimonials', 'team', 'pricing', 'faq', 'cta'] as BlockType[],
   },
   {
+    label: 'E-Commerce',
+    types: ['product-grid', 'product-detail'] as BlockType[],
+  },
+  {
     label: 'Other',
-    types: ['contact', 'logo-cloud'] as BlockType[],
+    types: ['contact', 'logo-cloud', 'custom-code'] as BlockType[],
   },
 ];
 
@@ -452,4 +500,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   stats: 'Stats',
   'logo-cloud': 'Logo Cloud',
   footer: 'Footer',
+  'custom-code': 'Custom Code',
+  'product-grid': 'Product Grid',
+  'product-detail': 'Product Detail',
 };

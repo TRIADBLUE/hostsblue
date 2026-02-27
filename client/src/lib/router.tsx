@@ -18,6 +18,9 @@ import { SslPage } from '@/pages/dashboard/ssl';
 import { SitelockPage } from '@/pages/dashboard/sitelock';
 import { WebsiteBuilderPage } from '@/pages/dashboard/website-builder';
 import { WebsiteEditorPage } from '@/pages/dashboard/website-editor';
+import { WebsiteAnalyticsPage } from '@/pages/dashboard/website-analytics';
+import { StoreManagerPage } from '@/pages/dashboard/store-manager';
+import { AgencyClientsPage } from '@/pages/dashboard/agency-clients';
 import { BillingPage } from '@/pages/dashboard/billing';
 import { SupportPage } from '@/pages/dashboard/support';
 import { SettingsPage } from '@/pages/dashboard/settings';
@@ -89,6 +92,9 @@ export const router = createBrowserRouter([
       { path: 'ssl', element: <SslPage /> },
       { path: 'sitelock', element: <SitelockPage /> },
       { path: 'website-builder', element: <WebsiteBuilderPage /> },
+      { path: 'website-builder/:uuid/analytics', element: <WebsiteAnalyticsPage /> },
+      { path: 'website-builder/:uuid/store', element: <StoreManagerPage /> },
+      { path: 'website-builder/clients', element: <AgencyClientsPage /> },
       { path: 'billing', element: <BillingPage /> },
       { path: 'support', element: <SupportPage /> },
       { path: 'settings', element: <SettingsPage /> },

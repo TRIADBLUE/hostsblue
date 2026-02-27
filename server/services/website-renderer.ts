@@ -11,6 +11,12 @@ interface RenderContext {
   seo?: { title?: string; description?: string; ogImage?: string };
   pages?: { slug: string; title: string; showInNav: boolean }[];
   baseUrl?: string;
+  siteSlug?: string;
+  settings?: {
+    whiteLabel?: boolean;
+    customFavicon?: string;
+    customFooterText?: string;
+  };
 }
 
 // ============================================================================
@@ -22,10 +28,24 @@ export function renderPage(blocks: WebsiteBlock[], ctx: RenderContext): string {
   const title = seo?.title || ctx.businessName;
   const description = seo?.description || `${ctx.businessName} — powered by hostsblue`;
 
-  const blocksHtml = blocks
-    .filter(b => !b.style?.hidden)
+  const visibleBlocks = blocks.filter(b => !b.style?.hidden);
+
+  // Collect custom-code blocks for head/body-end injection
+  const headCode: string[] = [];
+  const bodyEndCode: string[] = [];
+  for (const b of visibleBlocks) {
+    if (b.type === 'custom-code') {
+      if (b.data.position === 'head') headCode.push(renderCustomCode(b.data, 'head'));
+      else if (b.data.position === 'body-end') bodyEndCode.push(renderCustomCode(b.data, 'body-end'));
+    }
+  }
+
+  const blocksHtml = visibleBlocks
+    .filter(b => !(b.type === 'custom-code' && (b.data.position === 'head' || b.data.position === 'body-end')))
     .map(b => renderBlock(b, ctx))
     .join('\n');
+
+  const scripts = renderScripts(ctx);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -37,13 +57,17 @@ export function renderPage(blocks: WebsiteBlock[], ctx: RenderContext): string {
   ${seo?.ogImage ? `<meta property="og:image" content="${escHtml(seo.ogImage)}">` : ''}
   <meta property="og:title" content="${escHtml(title)}">
   <meta property="og:description" content="${escHtml(description)}">
+  ${ctx.settings?.customFavicon ? `<link rel="icon" href="${escHtml(ctx.settings.customFavicon)}">` : ''}
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(theme.fontHeading)}:wght@400;600;700;800&family=${encodeURIComponent(theme.fontBody)}:wght@400;500;600&display=swap" rel="stylesheet">
   <style>${generateCSS(theme)}</style>
+${headCode.join('\n')}
 </head>
 <body>
 ${blocksHtml}
+${bodyEndCode.join('\n')}
+${scripts}
 </body>
 </html>`;
 }
@@ -130,11 +154,14 @@ function renderBlock(block: WebsiteBlock, ctx: RenderContext): string {
     case 'pricing': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderPricing(data)}</div></section>`;
     case 'faq': return `<section class="section" ${sectionStyle}><div class="${containerClass} container--sm">${renderFaq(data)}</div></section>`;
     case 'gallery': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderGallery(data)}</div></section>`;
-    case 'contact': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderContact(data)}</div></section>`;
+    case 'contact': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderContact(data, ctx)}</div></section>`;
     case 'team': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderTeam(data)}</div></section>`;
     case 'stats': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderStats(data)}</div></section>`;
     case 'logo-cloud': return `<section class="section section--sm" ${sectionStyle}><div class="${containerClass}">${renderLogoCloud(data)}</div></section>`;
-    case 'footer': return renderFooter(data);
+    case 'footer': return renderFooter(data, ctx);
+    case 'custom-code': return renderCustomCode(data, 'inline');
+    case 'product-grid': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderProductGrid(data, ctx)}</div></section>`;
+    case 'product-detail': return `<section class="section" ${sectionStyle}><div class="${containerClass}">${renderProductDetail(data)}</div></section>`;
     default: return `<!-- unknown block type: ${type} -->`;
   }
 }
@@ -295,18 +322,20 @@ function renderGallery(d: any): string {
 }
 
 // ---- Contact ----
-function renderContact(d: any): string {
+function renderContact(d: any, ctx: RenderContext): string {
   let html = '';
   if (d.heading) html += `<h2 class="text-center">${escHtml(d.heading)}</h2>`;
   html += `<div class="grid grid-2" style="margin-top:2rem">`;
 
   if (d.showForm) {
+    const formId = `cf_${Math.random().toString(36).slice(2, 8)}`;
     html += `<div class="card card--bordered" style="padding:2rem">
-      <form onsubmit="return false">
-        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Name</label><input type="text" placeholder="Your name" style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem"></div>
-        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Email</label><input type="email" placeholder="your@email.com" style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem"></div>
-        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Message</label><textarea rows="4" placeholder="Your message..." style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem;resize:vertical"></textarea></div>
+      <form id="${formId}" onsubmit="return handleContactForm(event,'${formId}','${escHtml(ctx.siteSlug || '')}')">
+        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Name</label><input type="text" name="name" required placeholder="Your name" style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem"></div>
+        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Email</label><input type="email" name="email" required placeholder="your@email.com" style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem"></div>
+        <div style="margin-bottom:1rem"><label style="display:block;font-weight:500;margin-bottom:0.25rem">Message</label><textarea name="message" rows="4" required placeholder="Your message..." style="width:100%;padding:0.75rem;border:1px solid #e5e7eb;border-radius:var(--radius);font-size:1rem;resize:vertical"></textarea></div>
         <button type="submit" class="btn btn--primary" style="width:100%">Send Message</button>
+        <div id="${formId}_msg" style="margin-top:0.75rem;text-align:center;font-size:0.9rem"></div>
       </form>
     </div>`;
   }
@@ -370,7 +399,8 @@ function renderLogoCloud(d: any): string {
 }
 
 // ---- Footer ----
-function renderFooter(d: any): string {
+function renderFooter(d: any, ctx?: RenderContext): string {
+  const isWhiteLabel = ctx?.settings?.whiteLabel === true;
   let html = `<footer style="background:var(--primary);color:rgba(255,255,255,0.85);padding:3rem 1.5rem">`;
   html += `<div class="container container--xl">`;
   html += `<div class="flex flex-between" style="flex-wrap:wrap;gap:2rem">`;
@@ -385,8 +415,96 @@ function renderFooter(d: any): string {
   }
   html += `</div></div>`;
   if (d.copyright) html += `<p style="margin-top:2rem;font-size:0.8rem;opacity:0.5;text-align:center">${escHtml(d.copyright)}</p>`;
+  if (ctx?.settings?.customFooterText) html += `<p style="margin-top:0.5rem;font-size:0.75rem;opacity:0.4;text-align:center">${escHtml(ctx.settings.customFooterText)}</p>`;
+  if (!isWhiteLabel) html += `<p style="margin-top:1rem;font-size:0.7rem;opacity:0.3;text-align:center">Powered by <a href="https://hostsblue.com" style="color:rgba(255,255,255,0.5)">hostsblue</a></p>`;
   html += `</div></footer>`;
   return html;
+}
+
+// ---- Custom Code ----
+function renderCustomCode(d: any, position: string): string {
+  const parts: string[] = [];
+  if (d.css) parts.push(`<style>${d.css}</style>`);
+  if (position === 'inline' && d.html) parts.push(d.html);
+  if (position === 'head' && d.html) parts.push(d.html);
+  if (position === 'body-end' && d.html) parts.push(d.html);
+  if (d.js) parts.push(`<script>${d.js}</script>`);
+  return parts.join('\n');
+}
+
+// ---- Product Grid ----
+function renderProductGrid(d: any, ctx: RenderContext): string {
+  const cols = Math.min(Math.max(d.columns || 3, 2), 4);
+  let html = '';
+  if (d.heading) html += `<h2 class="text-center">${escHtml(d.heading)}</h2>`;
+  html += `<div id="product-grid" class="grid grid-${cols}" style="margin-top:2rem"></div>`;
+  // Client-side fetch for products
+  if (ctx.siteSlug) {
+    const catParam = d.categorySlug ? `&category=${escHtml(d.categorySlug)}` : '';
+    html += `<script>
+(function(){
+  fetch('/api/v1/sites/${escHtml(ctx.siteSlug)}/store/products?limit=${d.maxProducts || 12}${catParam}')
+  .then(function(r){return r.json()})
+  .then(function(res){
+    var g=document.getElementById('product-grid');if(!g||!res.data)return;
+    res.data.forEach(function(p){
+      var c=document.createElement('div');c.className='card card--bordered';c.style.cssText='padding:1rem;text-align:center';
+      var img=p.images&&p.images[0]?'<img src="'+p.images[0]+'" alt="'+p.name+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius);margin-bottom:0.75rem">':'';
+      c.innerHTML=img+'<h3 style="font-size:1rem">'+p.name+'</h3>'+(${d.showPrice !== false}?'<p style="color:var(--primary);font-weight:700;margin:0.5rem 0">$'+(p.price/100).toFixed(2)+'</p>':'')+'<a href="/sites/${escHtml(ctx.siteSlug)}/store/'+p.slug+'" class="btn btn--primary" style="font-size:0.85rem;padding:0.5rem 1rem;margin-top:0.5rem">View</a>';
+      g.appendChild(c);
+    });
+  });
+})();
+</script>`;
+  }
+  return html;
+}
+
+// ---- Product Detail ----
+function renderProductDetail(d: any): string {
+  if (!d.productSlug) return `<p class="text-center muted">No product selected</p>`;
+  return `<div id="product-detail" class="grid grid-2" style="gap:2rem"><div style="background:#f3f4f6;aspect-ratio:1;border-radius:var(--radius)"></div><div><h2>Loading...</h2></div></div>`;
+}
+
+// ============================================================================
+// SCRIPTS
+// ============================================================================
+
+function renderScripts(ctx: RenderContext): string {
+  const parts: string[] = [];
+
+  // Analytics tracking
+  if (ctx.siteSlug) {
+    parts.push(`<script>
+(function(){
+  var sid=sessionStorage.getItem('_hb_sid');
+  if(!sid){sid=Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem('_hb_sid',sid);}
+  var d={slug:'${escHtml(ctx.siteSlug)}',pageSlug:location.pathname.split('/').pop()||'home',sessionId:sid,referrer:document.referrer||''};
+  navigator.sendBeacon('/api/v1/analytics/collect',JSON.stringify(d));
+})();
+</script>`);
+  }
+
+  // Contact form handler
+  if (ctx.siteSlug) {
+    parts.push(`<script>
+function handleContactForm(e,formId,slug){
+  e.preventDefault();
+  var f=document.getElementById(formId);
+  var m=document.getElementById(formId+'_msg');
+  var btn=f.querySelector('button[type="submit"]');
+  var d={name:f.name.value,email:f.email.value,message:f.message.value};
+  btn.disabled=true;btn.textContent='Sending...';
+  fetch('/api/v1/sites/'+slug+'/forms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
+  .then(function(r){if(!r.ok)throw new Error();m.style.color='#008060';m.textContent='Message sent! We\\'ll get back to you soon.';f.reset();})
+  .catch(function(){m.style.color='#dc2626';m.textContent='Something went wrong. Please try again.';})
+  .finally(function(){btn.disabled=false;btn.textContent='Send Message';});
+  return false;
+}
+</script>`);
+  }
+
+  return parts.join('\n');
 }
 
 // ============================================================================

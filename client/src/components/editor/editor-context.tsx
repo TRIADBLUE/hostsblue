@@ -38,7 +38,7 @@ interface EditorState {
   theme: WebsiteTheme;
   isDirty: boolean;
   isSaving: boolean;
-  rightPanel: 'properties' | 'theme' | 'ai-coach' | null;
+  rightPanel: 'properties' | 'theme' | 'ai-coach' | 'seo' | null;
   devicePreview: 'desktop' | 'tablet' | 'mobile';
   history: WebsiteBlock[][];
   historyIndex: number;

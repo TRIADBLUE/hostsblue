@@ -15,6 +15,8 @@ import { WebsiteAIService } from './services/website-ai.js';
 import { AIProviderFactory, testProviderConnection } from './services/ai-provider.js';
 import type { ProviderConfig } from './services/ai-provider.js';
 import { AiCreditsService } from './services/ai-credits.js';
+import { PlanEnforcement } from './services/plan-enforcement.js';
+import { AnalyticsAggregation } from './services/analytics-aggregation.js';
 import { renderPage } from './services/website-renderer.js';
 import { encryptCredential, decryptCredential } from './services/wpmudev-integration.js';
 import { getTemplateById, templates as allTemplates } from '../shared/templates/index.js';
@@ -77,6 +79,8 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   const sitelockService = new SiteLockIntegration();
   const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev, opensrsEmail, opensrsSSL, sitelockService);
   const aiCreditsService = new AiCreditsService(db);
+  const planEnforcement = new PlanEnforcement(db);
+  const analyticsAggregation = new AnalyticsAggregation(db);
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
   // Rate limiters
@@ -1904,6 +1908,10 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   }));
 
   app.post('/api/v1/website-builder/projects', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    // Plan enforcement: check site limit
+    const siteCheck = await planEnforcement.checkSiteLimit(req.user!.userId);
+    if (!siteCheck.allowed) return res.status(403).json(errorResponse(siteCheck.reason!));
+
     const { name, template, customDomain, businessType, businessDescription } = req.body;
 
     // Generate slug from name
@@ -1999,6 +2007,10 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   app.post('/api/v1/website-builder/projects/:uuid/pages', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    // Plan enforcement: check page limit
+    const pageCheck = await planEnforcement.checkPageLimit(req.user!.userId, project.id);
+    if (!pageCheck.allowed) return res.status(403).json(errorResponse(pageCheck.reason!));
 
     const { slug, title, blocks, isHomePage, showInNav } = req.body;
     const maxSort = await db.query.websitePages.findFirst({
@@ -2258,6 +2270,34 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(result));
   }));
 
+  // ---- AI Generate SEO ----
+  app.post('/api/v1/website-builder/projects/:uuid/ai/generate-seo', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 1);
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
+    const pages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
+    const startTime = Date.now();
+    const result = await ai.generateSeo(
+      pages.map(p => ({ slug: p.slug, title: p.title, blocks: (p.blocks || []) as any[] })),
+      { businessName: project.name, businessType: project.businessType || 'business' },
+    );
+
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'generate_seo', result.usage, project.id, startTime);
+
+    res.json(successResponse(result));
+  }));
+
   // ---- AI Provider Settings ----
   app.get('/api/v1/ai/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
     const settings = await db.query.aiProviderSettings.findFirst({
@@ -2432,6 +2472,542 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.send(html);
   }));
 
+  // ---- Form Submissions ----
+  app.post('/api/v1/sites/:slug/forms', rateLimiter({ windowMs: 60 * 1000, max: 10, message: 'Too many form submissions' }), asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).json(errorResponse('Site not found'));
+
+    const { name, email, message, pageSlug, ...extra } = req.body;
+    const [submission] = await db.insert(schema.formSubmissions).values({
+      projectId: project.id,
+      pageSlug: pageSlug || null,
+      name: (name || '').slice(0, 200),
+      email: (email || '').slice(0, 255),
+      message: (message || '').slice(0, 5000),
+      data: extra || {},
+      ipAddress: (req.ip || req.socket.remoteAddress || '').slice(0, 45),
+    }).returning();
+
+    res.status(201).json(successResponse({ id: submission.uuid }, 'Submission received'));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/submissions', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const submissions = await db.query.formSubmissions.findMany({
+      where: eq(schema.formSubmissions.projectId, project.id),
+      orderBy: desc(schema.formSubmissions.createdAt),
+    });
+    res.json(successResponse(submissions));
+  }));
+
+  app.delete('/api/v1/website-builder/projects/:uuid/submissions/:id', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const subId = parseInt(req.params.id);
+    if (isNaN(subId)) return res.status(400).json(errorResponse('Invalid submission ID'));
+
+    await db.delete(schema.formSubmissions).where(
+      and(eq(schema.formSubmissions.id, subId), eq(schema.formSubmissions.projectId, project.id)),
+    );
+    res.json(successResponse(null, 'Submission deleted'));
+  }));
+
+  // ---- Builder Plan ----
+  app.get('/api/v1/website-builder/plan', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const sub = await db.query.builderSubscriptions.findFirst({
+      where: eq(schema.builderSubscriptions.customerId, req.user!.userId),
+    });
+
+    const { getPlanLimits } = await import('../shared/builder-plans.js');
+    const plan = sub?.plan || 'starter';
+    const limits = getPlanLimits(plan);
+
+    // Count current sites
+    const projects = await db.query.websiteProjects.findMany({
+      where: and(eq(schema.websiteProjects.customerId, req.user!.userId), sql`${schema.websiteProjects.deletedAt} IS NULL`),
+    });
+
+    res.json(successResponse({
+      plan,
+      status: sub?.status || 'active',
+      limits,
+      usage: { sites: projects.length },
+      expiresAt: sub?.expiresAt,
+    }));
+  }));
+
+  // ---- Agency Clients ----
+  app.get('/api/v1/website-builder/clients', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const featureCheck = await planEnforcement.checkFeatureGate(req.user!.userId, 'client-management');
+    if (!featureCheck.allowed) return res.status(403).json(errorResponse(featureCheck.reason!));
+
+    const clients = await db.query.agencyClients.findMany({
+      where: eq(schema.agencyClients.agencyCustomerId, req.user!.userId),
+      orderBy: desc(schema.agencyClients.createdAt),
+    });
+    res.json(successResponse(clients));
+  }));
+
+  app.post('/api/v1/website-builder/clients/invite', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const featureCheck = await planEnforcement.checkFeatureGate(req.user!.userId, 'client-management');
+    if (!featureCheck.allowed) return res.status(403).json(errorResponse(featureCheck.reason!));
+
+    const { email } = req.body;
+    if (!email) return res.status(400).json(errorResponse('Email is required'));
+
+    // Check for existing invite
+    const existing = await db.query.agencyClients.findFirst({
+      where: and(
+        eq(schema.agencyClients.agencyCustomerId, req.user!.userId),
+        eq(schema.agencyClients.clientEmail, email),
+      ),
+    });
+    if (existing) return res.status(409).json(errorResponse('Client already invited'));
+
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+
+    // Check if the email matches an existing customer
+    const existingCustomer = await db.query.customers.findFirst({
+      where: eq(schema.customers.email, email),
+    });
+
+    const [client] = await db.insert(schema.agencyClients).values({
+      agencyCustomerId: req.user!.userId,
+      clientCustomerId: existingCustomer?.id || null,
+      clientEmail: email,
+      inviteToken,
+      inviteStatus: existingCustomer ? 'accepted' : 'pending',
+      permissions: ['view', 'edit'],
+    }).returning();
+
+    res.status(201).json(successResponse(client));
+  }));
+
+  app.delete('/api/v1/website-builder/clients/:id', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).json(errorResponse('Invalid ID'));
+
+    await db.delete(schema.agencyClients).where(
+      and(eq(schema.agencyClients.id, id), eq(schema.agencyClients.agencyCustomerId, req.user!.userId)),
+    );
+    res.json(successResponse(null, 'Client removed'));
+  }));
+
+  app.post('/api/v1/website-builder/clients/accept-invite', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(400).json(errorResponse('Token is required'));
+
+    const invite = await db.query.agencyClients.findFirst({
+      where: and(eq(schema.agencyClients.inviteToken, token), eq(schema.agencyClients.inviteStatus, 'pending')),
+    });
+    if (!invite) return res.status(404).json(errorResponse('Invalid or expired invitation'));
+
+    const [updated] = await db.update(schema.agencyClients)
+      .set({ clientCustomerId: req.user!.userId, inviteStatus: 'accepted', inviteToken: null, updatedAt: new Date() })
+      .where(eq(schema.agencyClients.id, invite.id))
+      .returning();
+
+    res.json(successResponse(updated));
+  }));
+
+  // ---- Store Settings ----
+  app.get('/api/v1/website-builder/projects/:uuid/store/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    let settings = await db.query.storeSettings.findFirst({
+      where: eq(schema.storeSettings.projectId, project.id),
+    });
+
+    if (!settings) {
+      [settings] = await db.insert(schema.storeSettings).values({ projectId: project.id }).returning();
+    }
+
+    res.json(successResponse(settings));
+  }));
+
+  app.put('/api/v1/website-builder/projects/:uuid/store/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const featureCheck = await planEnforcement.checkFeatureGate(req.user!.userId, 'ecommerce');
+    if (!featureCheck.allowed) return res.status(403).json(errorResponse(featureCheck.reason!));
+
+    const { currency, taxRate, shippingOptions, paymentEnabled } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (currency !== undefined) updates.currency = currency;
+    if (taxRate !== undefined) updates.taxRate = String(taxRate);
+    if (shippingOptions !== undefined) updates.shippingOptions = shippingOptions;
+    if (paymentEnabled !== undefined) updates.paymentEnabled = paymentEnabled;
+
+    let settings = await db.query.storeSettings.findFirst({
+      where: eq(schema.storeSettings.projectId, project.id),
+    });
+
+    if (settings) {
+      [settings] = await db.update(schema.storeSettings).set(updates).where(eq(schema.storeSettings.id, settings.id)).returning();
+    } else {
+      [settings] = await db.insert(schema.storeSettings).values({ projectId: project.id, ...updates }).returning();
+    }
+
+    res.json(successResponse(settings));
+  }));
+
+  // ---- Store Products ----
+  app.get('/api/v1/website-builder/projects/:uuid/store/products', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const products = await db.query.storeProducts.findMany({
+      where: eq(schema.storeProducts.projectId, project.id),
+      orderBy: desc(schema.storeProducts.createdAt),
+    });
+    res.json(successResponse(products));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/store/products', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { name, description, price, compareAtPrice, images, variants, inventory, categoryId } = req.body;
+    if (!name || price === undefined) return res.status(400).json(errorResponse('Name and price are required'));
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 200);
+
+    const [product] = await db.insert(schema.storeProducts).values({
+      projectId: project.id,
+      name,
+      slug,
+      description,
+      price: parseInt(price),
+      compareAtPrice: compareAtPrice ? parseInt(compareAtPrice) : null,
+      images: images || [],
+      variants: variants || [],
+      inventory: inventory ?? null,
+      categoryId: categoryId || null,
+    }).returning();
+
+    res.status(201).json(successResponse(product));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/store/products/:productUuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const product = await db.query.storeProducts.findFirst({
+      where: and(eq(schema.storeProducts.uuid, req.params.productUuid), eq(schema.storeProducts.projectId, project.id)),
+    });
+    if (!product) return res.status(404).json(errorResponse('Product not found'));
+    res.json(successResponse(product));
+  }));
+
+  app.patch('/api/v1/website-builder/projects/:uuid/store/products/:productUuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const product = await db.query.storeProducts.findFirst({
+      where: and(eq(schema.storeProducts.uuid, req.params.productUuid), eq(schema.storeProducts.projectId, project.id)),
+    });
+    if (!product) return res.status(404).json(errorResponse('Product not found'));
+
+    const { name, description, price, compareAtPrice, images, variants, inventory, categoryId, isActive } = req.body;
+    const updates: Record<string, any> = { updatedAt: new Date() };
+    if (name !== undefined) { updates.name = name; updates.slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 200); }
+    if (description !== undefined) updates.description = description;
+    if (price !== undefined) updates.price = parseInt(price);
+    if (compareAtPrice !== undefined) updates.compareAtPrice = compareAtPrice ? parseInt(compareAtPrice) : null;
+    if (images !== undefined) updates.images = images;
+    if (variants !== undefined) updates.variants = variants;
+    if (inventory !== undefined) updates.inventory = inventory;
+    if (categoryId !== undefined) updates.categoryId = categoryId;
+    if (isActive !== undefined) updates.isActive = isActive;
+
+    const [updated] = await db.update(schema.storeProducts).set(updates).where(eq(schema.storeProducts.id, product.id)).returning();
+    res.json(successResponse(updated));
+  }));
+
+  app.delete('/api/v1/website-builder/projects/:uuid/store/products/:productUuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    await db.delete(schema.storeProducts).where(
+      and(eq(schema.storeProducts.uuid, req.params.productUuid), eq(schema.storeProducts.projectId, project.id)),
+    );
+    res.json(successResponse(null, 'Product deleted'));
+  }));
+
+  // ---- Store Categories ----
+  app.get('/api/v1/website-builder/projects/:uuid/store/categories', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const categories = await db.query.storeCategories.findMany({
+      where: eq(schema.storeCategories.projectId, project.id),
+      orderBy: schema.storeCategories.sortOrder,
+    });
+    res.json(successResponse(categories));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/store/categories', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { name } = req.body;
+    if (!name) return res.status(400).json(errorResponse('Name is required'));
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const [category] = await db.insert(schema.storeCategories).values({ projectId: project.id, name, slug }).returning();
+    res.status(201).json(successResponse(category));
+  }));
+
+  // ---- Store Orders ----
+  app.get('/api/v1/website-builder/projects/:uuid/store/orders', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const orders = await db.query.storeOrders.findMany({
+      where: eq(schema.storeOrders.projectId, project.id),
+      orderBy: desc(schema.storeOrders.createdAt),
+      with: { items: true },
+    });
+    res.json(successResponse(orders));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/store/orders/:orderUuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const order = await db.query.storeOrders.findFirst({
+      where: and(eq(schema.storeOrders.uuid, req.params.orderUuid), eq(schema.storeOrders.projectId, project.id)),
+      with: { items: true },
+    });
+    if (!order) return res.status(404).json(errorResponse('Order not found'));
+    res.json(successResponse(order));
+  }));
+
+  app.patch('/api/v1/website-builder/projects/:uuid/store/orders/:orderUuid', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const order = await db.query.storeOrders.findFirst({
+      where: and(eq(schema.storeOrders.uuid, req.params.orderUuid), eq(schema.storeOrders.projectId, project.id)),
+    });
+    if (!order) return res.status(404).json(errorResponse('Order not found'));
+
+    const { status } = req.body;
+    const [updated] = await db.update(schema.storeOrders).set({ status, updatedAt: new Date() }).where(eq(schema.storeOrders.id, order.id)).returning();
+    res.json(successResponse(updated));
+  }));
+
+  // ---- Public Storefront API ----
+  app.get('/api/v1/sites/:slug/store/products', asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).json(errorResponse('Site not found'));
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const category = req.query.category as string;
+
+    let products = await db.query.storeProducts.findMany({
+      where: and(eq(schema.storeProducts.projectId, project.id), eq(schema.storeProducts.isActive, true)),
+      orderBy: desc(schema.storeProducts.createdAt),
+    });
+
+    if (category) {
+      const cat = await db.query.storeCategories.findFirst({
+        where: and(eq(schema.storeCategories.projectId, project.id), eq(schema.storeCategories.slug, category)),
+      });
+      if (cat) products = products.filter(p => p.categoryId === cat.id);
+    }
+
+    res.json(successResponse(products.slice(0, limit)));
+  }));
+
+  app.post('/api/v1/sites/:slug/store/checkout', rateLimiter({ windowMs: 60 * 1000, max: 10 }), asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).json(errorResponse('Site not found'));
+
+    const { items, customerEmail, customerName, shippingAddress } = req.body;
+    if (!items || !Array.isArray(items) || items.length === 0) return res.status(400).json(errorResponse('Items are required'));
+    if (!customerEmail) return res.status(400).json(errorResponse('Email is required'));
+
+    const storeConf = await db.query.storeSettings.findFirst({
+      where: eq(schema.storeSettings.projectId, project.id),
+    });
+
+    let subtotal = 0;
+    const orderItems: Array<{ productId: number; productName: string; quantity: number; unitPrice: number; totalPrice: number; variant: any }> = [];
+
+    for (const item of items) {
+      const product = await db.query.storeProducts.findFirst({
+        where: and(eq(schema.storeProducts.projectId, project.id), eq(schema.storeProducts.slug, item.slug), eq(schema.storeProducts.isActive, true)),
+      });
+      if (!product) continue;
+      const qty = Math.max(1, Math.min(item.quantity || 1, 99));
+      const lineTotal = product.price * qty;
+      subtotal += lineTotal;
+      orderItems.push({ productId: product.id, productName: product.name, quantity: qty, unitPrice: product.price, totalPrice: lineTotal, variant: item.variant || null });
+    }
+
+    if (orderItems.length === 0) return res.status(400).json(errorResponse('No valid products'));
+
+    const taxRate = parseFloat(String(storeConf?.taxRate || '0'));
+    const tax = Math.round(subtotal * (taxRate / 100));
+    const total = subtotal + tax;
+    const orderNumber = `SO-${Date.now().toString(36).toUpperCase()}`;
+
+    const [order] = await db.insert(schema.storeOrders).values({
+      projectId: project.id,
+      orderNumber,
+      status: 'pending',
+      customerEmail,
+      customerName,
+      shippingAddress,
+      subtotal,
+      tax,
+      shipping: 0,
+      total,
+    }).returning();
+
+    for (const item of orderItems) {
+      await db.insert(schema.storeOrderItems).values({ orderId: order.id, ...item });
+    }
+
+    res.status(201).json(successResponse({ order: { uuid: order.uuid, orderNumber, total } }));
+  }));
+
+  // ---- Custom Domain Binding ----
+  app.patch('/api/v1/website-builder/projects/:uuid/domain', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const featureCheck = await planEnforcement.checkFeatureGate(req.user!.userId, 'custom-domain');
+    if (!featureCheck.allowed) return res.status(403).json(errorResponse(featureCheck.reason!));
+
+    const { domain } = req.body;
+    if (!domain || domain.length > 253) return res.status(400).json(errorResponse('Invalid domain'));
+
+    const verifyToken = crypto.randomBytes(16).toString('hex');
+
+    const [updated] = await db.update(schema.websiteProjects)
+      .set({
+        customDomain: domain,
+        settings: { ...(project.settings as any || {}), domainVerifyToken: verifyToken, domainVerified: false },
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.websiteProjects.id, project.id))
+      .returning();
+
+    res.json(successResponse({
+      domain,
+      verifyToken,
+      dnsInstructions: `Add a TXT record to ${domain} with value: hostsblue-verify=${verifyToken}`,
+    }));
+  }));
+
+  app.post('/api/v1/website-builder/projects/:uuid/domain/verify', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const settings = (project.settings || {}) as any;
+    const verifyToken = settings.domainVerifyToken;
+    const domain = project.customDomain;
+    if (!domain || !verifyToken) return res.status(400).json(errorResponse('No domain configured'));
+
+    try {
+      const dns = await import('dns');
+      const records = await dns.promises.resolveTxt(domain);
+      const found = records.flat().some(r => r === `hostsblue-verify=${verifyToken}`);
+
+      if (found) {
+        await db.update(schema.websiteProjects)
+          .set({ settings: { ...settings, domainVerified: true }, updatedAt: new Date() })
+          .where(eq(schema.websiteProjects.id, project.id));
+        res.json(successResponse({ verified: true }));
+      } else {
+        res.json(successResponse({ verified: false, message: 'TXT record not found. It may take up to 48 hours for DNS to propagate.' }));
+      }
+    } catch {
+      res.json(successResponse({ verified: false, message: 'Could not resolve DNS for this domain.' }));
+    }
+  }));
+
+  // ---- Project Settings (White-Label, etc.) ----
+  app.patch('/api/v1/website-builder/projects/:uuid/settings', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const currentSettings = (project.settings || {}) as any;
+    const newSettings = { ...currentSettings, ...req.body };
+
+    // White-label requires agency plan
+    if (req.body.whiteLabel !== undefined) {
+      const featureCheck = await planEnforcement.checkFeatureGate(req.user!.userId, 'white-label');
+      if (!featureCheck.allowed) return res.status(403).json(errorResponse(featureCheck.reason!));
+    }
+
+    const [updated] = await db.update(schema.websiteProjects)
+      .set({ settings: newSettings, updatedAt: new Date() })
+      .where(eq(schema.websiteProjects.id, project.id))
+      .returning();
+
+    res.json(successResponse(updated));
+  }));
+
+  // ---- Analytics ----
+  app.post('/api/v1/analytics/collect', rateLimiter({ windowMs: 60 * 1000, max: 60, message: 'Too many requests' }), asyncHandler(async (req, res) => {
+    const { slug, pageSlug, sessionId, referrer } = req.body;
+    if (!slug) return res.status(400).json(errorResponse('Missing slug'));
+
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).json(errorResponse('Site not found'));
+
+    const ua = req.headers['user-agent'] || '';
+    let device = 'desktop';
+    if (/mobile/i.test(ua)) device = 'mobile';
+    else if (/tablet|ipad/i.test(ua)) device = 'tablet';
+
+    let browser = 'other';
+    if (/chrome/i.test(ua) && !/edge/i.test(ua)) browser = 'Chrome';
+    else if (/firefox/i.test(ua)) browser = 'Firefox';
+    else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+    else if (/edge/i.test(ua)) browser = 'Edge';
+
+    await db.insert(schema.siteAnalytics).values({
+      projectId: project.id,
+      pageSlug: (pageSlug || 'home').slice(0, 100),
+      sessionId: (sessionId || '').slice(0, 64),
+      referrer: (referrer || '').slice(0, 500),
+      device,
+      browser,
+    });
+
+    // Trigger daily aggregation async
+    const today = new Date().toISOString().slice(0, 10);
+    analyticsAggregation.aggregateDaily(project.id, today).catch(() => {});
+
+    res.json(successResponse(null));
+  }));
+
+  app.get('/api/v1/website-builder/projects/:uuid/analytics', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const days = Math.min(parseInt(req.query.days as string) || 30, 90);
+    const analytics = await analyticsAggregation.getDailySummary(project.id, days);
+    res.json(successResponse(analytics));
+  }));
+
   // ---- Published Site Serving ----
   app.get('/sites/:slug', asyncHandler(async (req, res) => {
     const project = await db.query.websiteProjects.findFirst({
@@ -2444,11 +3020,18 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     });
     if (!page) return res.status(404).send('<h1>No home page found</h1>');
 
+    const allPages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
     const theme = (project.theme || defaultTheme) as any;
     const html = renderPage((page.blocks || []) as any[], {
       theme,
       businessName: project.name,
       seo: (page.seo || {}) as any,
+      siteSlug: project.slug || '',
+      pages: allPages.map(p => ({ slug: p.slug, title: p.title, showInNav: p.showInNav })),
     });
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
@@ -2465,11 +3048,18 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     });
     if (!page) return res.status(404).send('<h1>Page not found</h1>');
 
+    const allPages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
     const theme = (project.theme || defaultTheme) as any;
     const html = renderPage((page.blocks || []) as any[], {
       theme,
       businessName: project.name,
       seo: (page.seo || {}) as any,
+      siteSlug: project.slug || '',
+      pages: allPages.map(p => ({ slug: p.slug, title: p.title, showInNav: p.showInNav })),
     });
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
