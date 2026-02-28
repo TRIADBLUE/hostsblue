@@ -3,6 +3,7 @@ import { eq, and, desc, like, sql, inArray } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from '../shared/schema.js';
 import { authenticateToken, requireAuth, generateTokens, blacklistToken } from './middleware/auth.js';
+import { registerPanelRoutes } from './routes/panel.js';
 import { rateLimiter } from './middleware/rate-limit.js';
 import { OpenSRSIntegration } from './services/opensrs-integration.js';
 import { WPMUDevIntegration } from './services/wpmudev-integration.js';
@@ -4282,4 +4283,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
     next(err);
   });
+
+  // Mount admin panel routes
+  registerPanelRoutes(app, db as any);
 }

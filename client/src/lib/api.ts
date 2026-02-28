@@ -267,4 +267,169 @@ export const supportApi = {
     fetchApi<any>(`/support/tickets/${ticketUuid}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),
 };
 
+// Panel (admin) API — uses /api/panel prefix
+async function fetchPanel<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const url = `${API_URL}/api/panel${endpoint}`;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  const response = await fetch(url, { ...options, headers, credentials: 'include' });
+  const data = await response.json();
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      if (!isRefreshing) {
+        isRefreshing = true;
+        refreshPromise = refreshToken();
+      }
+      const refreshed = await refreshPromise;
+      isRefreshing = false;
+      refreshPromise = null;
+      if (refreshed) return fetchPanel(endpoint, options);
+    }
+    throw new ApiError(data.error || 'An error occurred', response.status, data.code);
+  }
+  return data.data;
+}
+
+export const panelApi = {
+  // Stats & Overview
+  getStats: () => fetchPanel<any>('/stats'),
+
+  // Customers
+  getCustomers: (params?: { search?: string; status?: string; sort?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.sort) qs.set('sort', params.sort);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/customers?${qs.toString()}`);
+  },
+  getCustomer: (id: number) => fetchPanel<any>(`/customers/${id}`),
+  updateCustomer: (id: number, data: any) =>
+    fetchPanel<any>(`/customers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  suspendCustomer: (id: number) =>
+    fetchPanel<any>(`/customers/${id}/suspend`, { method: 'POST' }),
+  activateCustomer: (id: number) =>
+    fetchPanel<any>(`/customers/${id}/activate`, { method: 'POST' }),
+  deleteCustomer: (id: number) =>
+    fetchPanel<any>(`/customers/${id}`, { method: 'DELETE' }),
+  getCustomerNotes: (id: number) => fetchPanel<any[]>(`/customers/${id}/notes`),
+  addCustomerNote: (id: number, content: string) =>
+    fetchPanel<any>(`/customers/${id}/notes`, { method: 'POST', body: JSON.stringify({ content }) }),
+  getCustomerDomains: (id: number) => fetchPanel<any[]>(`/customers/${id}/domains`),
+  getCustomerHosting: (id: number) => fetchPanel<any[]>(`/customers/${id}/hosting`),
+  getCustomerEmail: (id: number) => fetchPanel<any[]>(`/customers/${id}/email`),
+  getCustomerSsl: (id: number) => fetchPanel<any[]>(`/customers/${id}/ssl`),
+  getCustomerProjects: (id: number) => fetchPanel<any[]>(`/customers/${id}/projects`),
+  getCustomerTickets: (id: number) => fetchPanel<any[]>(`/customers/${id}/tickets`),
+
+  // Orders
+  getOrders: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/orders?${qs.toString()}`);
+  },
+  getOrder: (id: number) => fetchPanel<any>(`/orders/${id}`),
+  updateOrder: (id: number, data: any) =>
+    fetchPanel<any>(`/orders/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  refundOrder: (id: number, amount: number, reason?: string) =>
+    fetchPanel<any>(`/orders/${id}/refund`, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
+
+  // Domains
+  getDomains: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/domains?${qs.toString()}`);
+  },
+  suspendDomain: (id: number) => fetchPanel<any>(`/domains/${id}/suspend`, { method: 'POST' }),
+  activateDomain: (id: number) => fetchPanel<any>(`/domains/${id}/activate`, { method: 'POST' }),
+
+  // Hosting
+  getHosting: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/hosting?${qs.toString()}`);
+  },
+  suspendHosting: (id: number) => fetchPanel<any>(`/hosting/${id}/suspend`, { method: 'POST' }),
+  activateHosting: (id: number) => fetchPanel<any>(`/hosting/${id}/activate`, { method: 'POST' }),
+
+  // Email
+  getEmail: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/email?${qs.toString()}`);
+  },
+  suspendEmail: (id: number) => fetchPanel<any>(`/email/${id}/suspend`, { method: 'POST' }),
+  activateEmail: (id: number) => fetchPanel<any>(`/email/${id}/activate`, { method: 'POST' }),
+
+  // SSL
+  getSsl: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/ssl?${qs.toString()}`);
+  },
+
+  // Website Builder
+  getBuilder: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/builder?${qs.toString()}`);
+  },
+  suspendProject: (id: number) => fetchPanel<any>(`/builder/${id}/suspend`, { method: 'POST' }),
+  activateProject: (id: number) => fetchPanel<any>(`/builder/${id}/activate`, { method: 'POST' }),
+
+  // Tickets
+  getTickets: (params?: { search?: string; status?: string; priority?: string; page?: number; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.status) qs.set('status', params.status);
+    if (params?.priority) qs.set('priority', params.priority);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    return fetchPanel<any>(`/tickets?${qs.toString()}`);
+  },
+  getTicket: (id: number) => fetchPanel<any>(`/tickets/${id}`),
+  addTicketMessage: (id: number, body: string, isInternal = false) =>
+    fetchPanel<any>(`/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ body, isInternal }) }),
+  updateTicket: (id: number, data: any) =>
+    fetchPanel<any>(`/tickets/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  closeTicket: (id: number) =>
+    fetchPanel<any>(`/tickets/${id}/close`, { method: 'POST' }),
+
+  // Revenue
+  getRevenue: (period = '30d') => fetchPanel<any>(`/revenue?period=${period}`),
+
+  // Settings
+  getSettings: () => fetchPanel<any>('/settings'),
+  updateSettings: (section: string, data: Record<string, string>) =>
+    fetchPanel<any>(`/settings/${section}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  updateTemplate: (slug: string, data: any) =>
+    fetchPanel<any>(`/settings/templates/${slug}`, { method: 'PATCH', body: JSON.stringify(data) }),
+
+  // Search
+  search: (q: string) => fetchPanel<any>(`/search?q=${encodeURIComponent(q)}`),
+};
+
 export { ApiError };

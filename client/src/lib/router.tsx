@@ -53,6 +53,7 @@ import { PanelSupportPage } from '@/pages/panel/support';
 import { PanelRevenuePage } from '@/pages/panel/revenue';
 import { PanelSettingsPage } from '@/pages/panel/settings';
 import { PanelCloudPage } from '@/pages/panel/cloud';
+import { PanelCustomerDetailPage } from '@/pages/panel/customer-detail';
 
 export const router = createBrowserRouter([
   {
@@ -121,6 +122,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <PanelOverviewPage /> },
       { path: 'customers', element: <PanelCustomersPage /> },
+      { path: 'customers/:id', element: <PanelCustomerDetailPage /> },
       { path: 'orders', element: <PanelOrdersPage /> },
       { path: 'domains', element: <PanelDomainsPage /> },
       { path: 'hosting', element: <PanelHostingPage /> },

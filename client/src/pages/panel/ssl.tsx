@@ -1,32 +1,13 @@
 import { useState } from 'react';
-import { MoreHorizontal, RefreshCw, XCircle, RotateCcw } from 'lucide-react';
-
-interface SslCertificate {
-  id: number;
-  domain: string;
-  type: 'DV' | 'OV' | 'EV' | 'Wildcard';
-  customer: string;
-  status: 'Active' | 'Expired' | 'Pending' | 'Revoked';
-  issued: string;
-  expires: string;
-}
-
-const certificates: SslCertificate[] = [
-  { id: 1, domain: 'mitchelldesign.com', type: 'DV', customer: 'Sarah Mitchell', status: 'Active', issued: 'Jan 20, 2026', expires: 'Jan 20, 2027' },
-  { id: 2, domain: '*.chentech.io', type: 'Wildcard', customer: 'James Chen', status: 'Active', issued: 'Feb 19, 2026', expires: 'Feb 19, 2027' },
-  { id: 3, domain: 'brightpixel.co', type: 'OV', customer: 'Emily Rodriguez', status: 'Active', issued: 'Sep 10, 2025', expires: 'Sep 10, 2026' },
-  { id: 4, domain: 'bennettlaw.com', type: 'EV', customer: 'Laura Bennett', status: 'Active', issued: 'Aug 5, 2025', expires: 'Aug 5, 2026' },
-  { id: 5, domain: 'mendezgroup.mx', type: 'OV', customer: 'Carlos Mendez', status: 'Active', issued: 'Nov 15, 2025', expires: 'Nov 15, 2026' },
-  { id: 6, domain: 'greenleafstudio.com', type: 'DV', customer: 'Priya Sharma', status: 'Active', issued: 'Dec 1, 2025', expires: 'Dec 1, 2026' },
-  { id: 7, domain: 'creativeflow.design', type: 'DV', customer: 'Aisha Patel', status: 'Expired', issued: 'Oct 5, 2024', expires: 'Oct 5, 2025' },
-  { id: 8, domain: 'wrightphoto.com', type: 'DV', customer: 'Thomas Wright', status: 'Active', issued: 'Oct 12, 2025', expires: 'Oct 12, 2026' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { panelApi } from '@/lib/api';
+import { Loader2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
-  Active: 'bg-[#10B981] text-white',
-  Expired: 'bg-[#DC2626] text-white',
-  Pending: 'bg-[#FFD700] text-[#09080E]',
-  Revoked: 'bg-gray-200 text-[#4B5563]',
+  active: 'bg-[#10B981] text-white',
+  expired: 'bg-[#DC2626] text-white',
+  pending: 'bg-[#FFD700] text-[#09080E]',
+  revoked: 'bg-gray-200 text-[#4B5563]',
 };
 
 const typeColors: Record<string, string> = {
@@ -36,8 +17,53 @@ const typeColors: Record<string, string> = {
   Wildcard: 'bg-purple-50 text-purple-700',
 };
 
+function getTypeFromSlug(productSlug: string): string {
+  if (!productSlug) return 'DV';
+  const slug = productSlug.toLowerCase();
+  if (slug.includes('wildcard')) return 'Wildcard';
+  if (slug.includes('ev') || slug.includes('extended')) return 'EV';
+  if (slug.includes('ov') || slug.includes('organization')) return 'OV';
+  return 'DV';
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '--';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export function PanelSslPage() {
-  const [openActions, setOpenActions] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const limit = 20;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['panel', 'ssl', page],
+    queryFn: () => panelApi.getSsl({ page, limit }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-64 text-[#DC2626]">
+        Failed to load SSL certificates.
+      </div>
+    );
+  }
+
+  const certificates = data?.certificates || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
+  const expiringCount = data?.expiringCount || 0;
 
   return (
     <div className="space-y-6">
@@ -47,9 +73,19 @@ export function PanelSslPage() {
         <p className="text-[#4B5563]">Manage customer SSL certificates</p>
       </div>
 
+      {/* Expiring Warning */}
+      {expiringCount > 0 && (
+        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-[7px] px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0" />
+          <span className="text-sm text-orange-800 font-medium">
+            {expiringCount} certificate{expiringCount !== 1 ? 's' : ''} expiring soon
+          </span>
+        </div>
+      )}
+
       {/* Type Legend */}
       <div className="bg-white border border-[#E5E7EB] rounded-[7px] p-4">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <span className="text-sm text-[#4B5563] font-medium">Certificate Types:</span>
           {Object.entries(typeColors).map(([type, classes]) => (
             <span key={type} className={`px-2.5 py-1 rounded-full text-xs font-medium ${classes}`}>
@@ -71,52 +107,71 @@ export function PanelSslPage() {
                 <th className="px-6 py-3 font-medium">Status</th>
                 <th className="px-6 py-3 font-medium">Issued</th>
                 <th className="px-6 py-3 font-medium">Expires</th>
-                <th className="px-6 py-3 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {certificates.map((cert) => (
-                <tr key={cert.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-3 text-sm font-medium text-[#064A6C]">{cert.domain}</td>
-                  <td className="px-6 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${typeColors[cert.type]}`}>
-                      {cert.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-[#09080E]">{cert.customer}</td>
-                  <td className="px-6 py-3">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[cert.status]}`}>
-                      {cert.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm text-[#4B5563]">{cert.issued}</td>
-                  <td className="px-6 py-3 text-sm text-[#4B5563]">{cert.expires}</td>
-                  <td className="px-6 py-3 relative">
-                    <button
-                      onClick={() => setOpenActions(openActions === cert.id ? null : cert.id)}
-                      className="p-1 hover:bg-gray-100 rounded"
-                    >
-                      <MoreHorizontal className="w-4 h-4 text-[#4B5563]" />
-                    </button>
-                    {openActions === cert.id && (
-                      <div className="absolute right-6 top-10 bg-white border border-[#E5E7EB] rounded-[7px] shadow-lg py-1 z-10 w-40">
-                        <button className="w-full text-left px-4 py-2 text-sm text-[#4B5563] hover:bg-gray-50 flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4" /> Renew
-                        </button>
-                        <button className="w-full text-left px-4 py-2 text-sm text-[#4B5563] hover:bg-gray-50 flex items-center gap-2">
-                          <XCircle className="w-4 h-4" /> Revoke
-                        </button>
-                        <button className="w-full text-left px-4 py-2 text-sm text-[#4B5563] hover:bg-gray-50 flex items-center gap-2">
-                          <RotateCcw className="w-4 h-4" /> Reissue
-                        </button>
-                      </div>
-                    )}
+              {certificates.length > 0 ? (
+                certificates.map((cert: any) => {
+                  const certType = getTypeFromSlug(cert.productSlug);
+                  return (
+                    <tr key={cert.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-3 text-sm font-medium text-[#064A6C]">{cert.domain}</td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${typeColors[certType] || typeColors.DV}`}>
+                          {certType}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3">
+                        <div className="text-sm text-[#09080E]">{cert.customerName || '--'}</div>
+                        {cert.customerEmail && (
+                          <div className="text-xs text-[#4B5563]">{cert.customerEmail}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusColors[cert.status] || 'bg-gray-100 text-[#4B5563]'}`}>
+                          {cert.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-sm text-[#4B5563]">{formatDate(cert.issuedAt)}</td>
+                      <td className="px-6 py-3 text-sm text-[#4B5563]">{formatDate(cert.expiresAt)}</td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-[#4B5563]">
+                    No SSL certificates found
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-3 border-t border-[#E5E7EB] bg-[#F9FAFB]">
+            <span className="text-sm text-[#4B5563]">
+              Page {page} of {totalPages} ({total} total)
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="p-1.5 rounded-[7px] border border-[#E5E7EB] text-[#4B5563] hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="p-1.5 rounded-[7px] border border-[#E5E7EB] text-[#4B5563] hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

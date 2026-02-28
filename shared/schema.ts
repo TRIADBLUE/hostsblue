@@ -1311,6 +1311,7 @@ export const supportTickets = pgTable('support_tickets', {
   category: varchar('category', { length: 50 }).notNull(), // billing, technical, domains, hosting, general
   priority: varchar('priority', { length: 20 }).default('normal').notNull(), // low, normal, high, urgent
   status: varchar('status', { length: 20 }).default('open').notNull(), // open, in_progress, waiting, resolved, closed
+  assignedTo: integer('assigned_to').references(() => customers.id),
   closedAt: timestamp('closed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1334,6 +1335,7 @@ export const ticketMessages = pgTable('ticket_messages', {
   senderId: integer('sender_id').references(() => customers.id),
   senderType: varchar('sender_type', { length: 20 }).default('customer').notNull(), // customer, agent, system
   body: text('body').notNull(),
+  isInternal: boolean('is_internal').default(false).notNull(),
   attachments: jsonb('attachments').default([]),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
@@ -1540,6 +1542,42 @@ export const platformSettings = pgTable('platform_settings', {
   id: serial('id').primaryKey(),
   key: varchar('key', { length: 100 }).notNull().unique(),
   value: text('value').notNull(),
+  section: varchar('section', { length: 100 }).default('general').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ============================================================================
+// CUSTOMER NOTES (internal admin notes)
+// ============================================================================
+
+export const customerNotes = pgTable('customer_notes', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  adminId: integer('admin_id').references(() => customers.id).notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  customerIdx: index('customer_notes_customer_idx').on(table.customerId),
+}));
+
+export const customerNotesRelations = relations(customerNotes, ({ one }) => ({
+  customer: one(customers, { fields: [customerNotes.customerId], references: [customers.id] }),
+  admin: one(customers, { fields: [customerNotes.adminId], references: [customers.id] }),
+}));
+
+// ============================================================================
+// EMAIL TEMPLATES
+// ============================================================================
+
+export const emailTemplates = pgTable('email_templates', {
+  id: serial('id').primaryKey(),
+  slug: varchar('slug', { length: 100 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  subject: varchar('subject', { length: 500 }).notNull(),
+  body: text('body').notNull(),
+  variables: jsonb('variables').default([]),
+  isActive: boolean('is_active').default(true).notNull(),
+  isRequired: boolean('is_required').default(false).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -1597,6 +1635,10 @@ export const insertCustomDomainSchema = createInsertSchema(customDomains);
 export const selectCustomDomainSchema = createSelectSchema(customDomains);
 export const insertPlatformSettingSchema = createInsertSchema(platformSettings);
 export const selectPlatformSettingSchema = createSelectSchema(platformSettings);
+export const insertCustomerNoteSchema = createInsertSchema(customerNotes);
+export const selectCustomerNoteSchema = createSelectSchema(customerNotes);
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates);
+export const selectEmailTemplateSchema = createSelectSchema(emailTemplates);
 
 // ============================================================================
 // TYPE EXPORTS
@@ -1725,3 +1767,11 @@ export type NewCustomDomain = typeof customDomains.$inferInsert;
 // Platform settings types
 export type PlatformSetting = typeof platformSettings.$inferSelect;
 export type NewPlatformSetting = typeof platformSettings.$inferInsert;
+
+// Customer notes types
+export type CustomerNote = typeof customerNotes.$inferSelect;
+export type NewCustomerNote = typeof customerNotes.$inferInsert;
+
+// Email template types
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type NewEmailTemplate = typeof emailTemplates.$inferInsert;
