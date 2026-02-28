@@ -175,6 +175,8 @@ export const websiteBuilderApi = {
   deletePage: (uuid: string, pageSlug: string) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/${pageSlug}`, { method: 'DELETE' }),
   reorderPages: (uuid: string, order: any[]) => fetchApi<any>(`/website-builder/projects/${uuid}/pages/reorder`, { method: 'PATCH', body: JSON.stringify({ order }) }),
   // AI
+  onboardingChat: (data: { message: string; step: string; context: any }) =>
+    fetchApi<any>('/website-builder/onboarding/chat', { method: 'POST', body: JSON.stringify(data) }),
   aiGenerate: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate`, { method: 'POST', body: JSON.stringify(data) }),
   aiChat: (uuid: string, data: any) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/chat`, { method: 'POST', body: JSON.stringify(data) }),
   aiGenerateBlock: (uuid: string, type: string) => fetchApi<any>(`/website-builder/projects/${uuid}/ai/generate-block`, { method: 'POST', body: JSON.stringify({ type }) }),
@@ -222,6 +224,8 @@ export const aiCreditsApi = {
   getBalance: () => fetchApi<any>('/ai/credits/balance'),
   purchase: (amountCents: number) =>
     fetchApi<any>('/ai/credits/purchase', { method: 'POST', body: JSON.stringify({ amountCents }) }),
+  quickPurchase: (amountCents: number) =>
+    fetchApi<any>('/ai/credits/quick-purchase', { method: 'POST', body: JSON.stringify({ amountCents }) }),
   getTransactions: (limit = 20, offset = 0) =>
     fetchApi<any[]>(`/ai/credits/transactions?limit=${limit}&offset=${offset}`),
   getDailyUsage: (days = 30) =>

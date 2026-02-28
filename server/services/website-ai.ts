@@ -1,5 +1,5 @@
 /**
- * Website AI Service — Builder AI: generation, coach chat, rewrite, SEO
+ * Website AI Service — Coach Green: generation, coach chat, rewrite, SEO, onboarding
  * Uses the provider abstraction. Does NOT care which AI backend is active.
  */
 
@@ -44,7 +44,59 @@ export interface CoachOperation {
   type: 'add_block' | 'update_block' | 'remove_block' | 'update_theme' | 'update_seo';
   description: string;
   payload: Record<string, any>;
+  preview?: {
+    label: string;
+    before?: string;
+    after?: string;
+    blockType?: string;
+  };
 }
+
+export interface OnboardingChatInput {
+  message: string;
+  step: 'greeting' | 'business_name' | 'business_type' | 'style' | 'pages' | 'generate';
+  context: {
+    businessName?: string;
+    businessType?: string;
+    style?: string;
+    selectedPages?: string[];
+  };
+}
+
+export interface OnboardingChatResponse {
+  message: string;
+  extractedData?: {
+    businessName?: string;
+    businessType?: string;
+    style?: string;
+    selectedPages?: string[];
+  };
+  readyToGenerate?: boolean;
+  suggestions?: string[];
+  usage?: TokenUsage;
+}
+
+// ============================================================================
+// COACH GREEN SYSTEM PROMPT
+// ============================================================================
+
+const COACH_GREEN_PERSONA = `You are Coach Green, the friendly AI website-building assistant at hostsblue.com.
+
+PERSONALITY:
+- Warm, encouraging, and professional — like a knowledgeable friend who happens to be a web expert
+- You celebrate user progress ("Great choice!" "That's going to look amazing!")
+- You give direct, actionable advice — never vague
+- You speak in first person and address the user directly
+- You're enthusiastic about helping businesses grow online
+- You never mention AI providers, models, or technical AI details — you are simply "Coach Green"
+
+RULES:
+- NEVER say "I'm an AI" or mention GPT/Claude/DeepSeek/OpenAI/Anthropic
+- NEVER give generic advice — always tailor to their specific business
+- Keep responses concise (2-4 sentences for chat, longer for business advice)
+- When suggesting site changes, always explain WHY it helps their business
+- Use hostsblue brand language: "your site", "your visitors", "your customers"
+- If you don't know something, say "Let me think about the best approach for your business..."`;
 
 // ============================================================================
 // STYLE PRESETS
@@ -94,6 +146,69 @@ export class WebsiteAIService {
   }
 
   /**
+   * Onboarding chat — Coach Green guides the user through setup
+   */
+  async onboardingChat(input: OnboardingChatInput): Promise<OnboardingChatResponse> {
+    if (this.isMock) {
+      return this.mockOnboardingChat(input);
+    }
+
+    const systemPrompt = `${COACH_GREEN_PERSONA}
+
+You are helping a user set up their new website through a conversational onboarding flow.
+
+Current step: ${input.step}
+Context gathered so far: ${JSON.stringify(input.context)}
+
+Your job is to:
+1. Respond warmly to their input
+2. Extract any relevant data from their message (business name, type, style preference, page selections)
+3. Guide them to the next step naturally
+
+RESPONSE FORMAT (JSON):
+{
+  "message": "Your conversational response",
+  "extractedData": { "businessName"?: string, "businessType"?: string, "style"?: string, "selectedPages"?: string[] },
+  "readyToGenerate": boolean,
+  "suggestions": ["optional quick-reply suggestions"]
+}
+
+Step guidance:
+- "greeting": Welcome them, ask about their business name
+- "business_name": Acknowledge their name, ask what type of business
+- "business_type": Acknowledge type, ask about preferred style (Professional, Creative, Bold, Minimal)
+- "style": Acknowledge style, suggest pages (Home, About, Services, Contact, FAQ, Testimonials, Pricing)
+- "pages": Acknowledge pages, set readyToGenerate=true
+- "generate": Confirm everything and set readyToGenerate=true
+
+Extract data from natural language. For example:
+- "I run a bakery called Sweet Dreams" -> { businessName: "Sweet Dreams", businessType: "Bakery" }
+- "I want it to look clean and modern" -> { style: "Minimal" }`;
+
+    try {
+      const { data: result, usage } = await this.provider.chatJSON<OnboardingChatResponse>(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: input.message },
+        ],
+        '{ "message": string, "extractedData"?: object, "readyToGenerate"?: boolean, "suggestions"?: string[] }',
+        { maxTokens: 1024, temperature: 0.7 },
+      );
+
+      return {
+        message: result.message || "Let's get started!",
+        extractedData: result.extractedData,
+        readyToGenerate: result.readyToGenerate || false,
+        suggestions: result.suggestions || [],
+        usage,
+      };
+    } catch (err) {
+      console.error('Onboarding chat failed:', err);
+      return this.mockOnboardingChat(input);
+    }
+  }
+
+  /**
    * Generate a complete website from business description
    */
   async generateWebsite(input: GenerateWebsiteInput): Promise<GeneratedWebsite> {
@@ -104,7 +219,9 @@ export class WebsiteAIService {
     const pages = input.selectedPages || ['Home', 'About', 'Services', 'Contact'];
     const theme = { ...defaultTheme, ...(styleThemes[input.style || 'Professional'] || {}) };
 
-    const systemPrompt = `You are an expert web designer AI. Generate a complete website as JSON.
+    const systemPrompt = `${COACH_GREEN_PERSONA}
+
+You are generating a complete website as JSON.
 
 ${blockSchemaDescription}
 
@@ -152,7 +269,7 @@ Return JSON: { "pages": [{ "slug": "home", "title": "Home", "isHomePage": true, 
   }
 
   /**
-   * AI Coach chat — business advisor + site editor
+   * AI Coach chat — Coach Green: business advisor + site editor
    */
   async coachChat(
     command: string,
@@ -163,8 +280,10 @@ Return JSON: { "pages": [{ "slug": "home", "title": "Home", "isHomePage": true, 
       return this.mockCoachChat(command);
     }
 
-    const systemPrompt = `You are an AI website coach for "${siteContext.businessName}" (${siteContext.businessType}).
-You help the user improve their website AND give business advice.
+    const systemPrompt = `${COACH_GREEN_PERSONA}
+
+You are coaching the user on their website for "${siteContext.businessName}" (${siteContext.businessType}).
+You help improve their website AND give business/marketing advice.
 
 Current site structure:
 ${siteContext.pages.map(p => `- Page "${p.title}" (/${p.slug}): ${p.blocks.length} blocks [${p.blocks.map(b => b.type).join(', ')}]`).join('\n')}
@@ -173,13 +292,19 @@ ${blockSchemaDescription}
 
 RESPONSE FORMAT (JSON):
 {
-  "message": "Your conversational response to the user",
+  "message": "Your conversational response as Coach Green",
   "operations": [
     {
       "id": "op_unique_id",
       "type": "add_block" | "update_block" | "remove_block" | "update_theme" | "update_seo",
       "description": "Human-readable description of the change",
-      "payload": { ...change data }
+      "payload": { ...change data },
+      "preview": {
+        "label": "Short label for the preview card",
+        "before": "Optional text showing current state",
+        "after": "Text showing what it will look like after",
+        "blockType": "Optional block type being added"
+      }
     }
   ],
   "suggestions": ["Optional follow-up suggestions as strings"]
@@ -191,12 +316,15 @@ For "remove_block": payload = { pageSlug, blockId }
 For "update_theme": payload = { ...partial theme }
 For "update_seo": payload = { pageSlug, seo: { title?, description?, ogImage? } }
 
-If the user asks for advice (SEO, marketing, etc.), return operations=[] and put advice in message+suggestions.
-If the user asks for site changes, return the changes as operations the user can accept/reject.`;
+IMPORTANT:
+- Always include a "preview" object on operations so users can see before/after
+- If the user asks for advice (SEO, marketing, etc.), return operations=[] and put advice in message+suggestions
+- If the user asks for site changes, return the changes as operations they can accept/reject
+- Explain WHY each change helps their business`;
 
     const messages: Message[] = [
       { role: 'system', content: systemPrompt },
-      ...history.slice(-10), // last 10 messages for context
+      ...history.slice(-10),
       { role: 'user', content: command },
     ];
 
@@ -207,9 +335,8 @@ If the user asks for site changes, return the changes as operations the user can
         { maxTokens: 4096, temperature: 0.7 },
       );
 
-      // Ensure valid structure
       return {
-        message: result.message || 'I processed your request.',
+        message: result.message || "I've got some ideas for you!",
         operations: Array.isArray(result.operations) ? result.operations : [],
         suggestions: Array.isArray(result.suggestions) ? result.suggestions : [],
         usage,
@@ -228,7 +355,9 @@ If the user asks for site changes, return the changes as operations the user can
       return createDefaultBlock(type);
     }
 
-    const systemPrompt = `Generate a single website block as JSON for a ${businessContext.businessType} business named "${businessContext.businessName}".
+    const systemPrompt = `${COACH_GREEN_PERSONA}
+
+Generate a single website block as JSON for a ${businessContext.businessType} business named "${businessContext.businessName}".
 ${blockSchemaDescription}
 Return only the block object. Make the content specific and compelling for this business type.`;
 
@@ -244,7 +373,7 @@ Return only the block object. Make the content specific and compelling for this 
 
       if (!block.id) block.id = generateBlockId();
       if (!block.style) block.style = { paddingY: 'lg', paddingX: 'md', maxWidth: 'lg' };
-      block.type = type; // Ensure type is correct
+      block.type = type;
       return { ...block, usage };
     } catch {
       return createDefaultBlock(type);
@@ -259,7 +388,9 @@ Return only the block object. Make the content specific and compelling for this 
       return { ...block, data: { ...block.data } };
     }
 
-    const systemPrompt = `You are a website content editor. Given a block and an instruction, return the modified block as JSON.
+    const systemPrompt = `${COACH_GREEN_PERSONA}
+
+You are editing website content. Given a block and an instruction, return the modified block as JSON.
 Keep the same block structure, only modify the content/data as instructed.`;
 
     try {
@@ -272,8 +403,8 @@ Keep the same block structure, only modify the content/data as instructed.`;
         { maxTokens: 2048, temperature: 0.5 },
       );
 
-      result.id = block.id; // Preserve original ID
-      result.type = block.type; // Preserve type
+      result.id = block.id;
+      result.type = block.type;
       return { ...result, usage };
     } catch {
       return block;
@@ -298,7 +429,7 @@ Keep the same block structure, only modify the content/data as instructed.`;
     try {
       const { data, usage } = await this.provider.chatJSON<Record<string, { title: string; description: string }>>(
         [
-          { role: 'system', content: 'Generate SEO meta titles and descriptions for each page of a website. Return JSON mapping page slug to { title, description }. Titles should be 50-60 chars, descriptions 150-160 chars.' },
+          { role: 'system', content: `${COACH_GREEN_PERSONA}\n\nGenerate SEO meta titles and descriptions for each page of a website. Return JSON mapping page slug to { title, description }. Titles should be 50-60 chars, descriptions 150-160 chars.` },
           { role: 'user', content: `Business: "${businessContext.businessName}" (${businessContext.businessType})\nPages: ${pages.map(p => `${p.slug}: ${p.title}`).join(', ')}` },
         ],
         '{ "home": { "title": string, "description": string }, ... }',
@@ -320,6 +451,65 @@ Keep the same block structure, only modify the content/data as instructed.`;
   // ============================================================================
   // MOCK IMPLEMENTATIONS
   // ============================================================================
+
+  private mockOnboardingChat(input: OnboardingChatInput): OnboardingChatResponse {
+    const { step, context } = input;
+
+    switch (step) {
+      case 'greeting':
+        return {
+          message: "Hey there! I'm Coach Green, your website-building sidekick. I'm going to help you create a beautiful website in just a few minutes. Let's start with the basics — what's your business name?",
+          suggestions: [],
+        };
+
+      case 'business_name': {
+        const name = input.message.trim();
+        return {
+          message: `Love it — "${name}" is a great name! What type of business is ${name}? For example: Restaurant, Law Firm, Fitness Studio, Photography, Tech Startup...`,
+          extractedData: { businessName: name },
+          suggestions: ['Restaurant', 'Law Firm', 'Fitness Studio', 'Photography'],
+        };
+      }
+
+      case 'business_type': {
+        const type = input.message.trim();
+        return {
+          message: `A ${type} — exciting! Now let's talk style. How do you want your site to feel?\n\n- **Professional** — Clean, corporate, trustworthy\n- **Creative** — Vibrant, artistic, unique\n- **Bold** — Strong colors, high-energy\n- **Minimal** — Simple, elegant, spacious`,
+          extractedData: { businessType: type },
+          suggestions: ['Professional', 'Creative', 'Bold', 'Minimal'],
+        };
+      }
+
+      case 'style': {
+        const style = input.message.trim();
+        const matched = Object.keys(styleThemes).find(s => style.toLowerCase().includes(s.toLowerCase())) || 'Professional';
+        return {
+          message: `${matched} style — that's going to look amazing! Last step: which pages do you want? I'd recommend starting with these, but you can customize:`,
+          extractedData: { style: matched },
+          suggestions: ['Home, About, Services, Contact', 'Home, About, Services, FAQ, Contact', 'Home, About, Pricing, Testimonials, Contact'],
+        };
+      }
+
+      case 'pages':
+      case 'generate': {
+        const pages = input.message.includes(',')
+          ? input.message.split(',').map(p => p.trim()).filter(Boolean)
+          : ['Home', 'About', 'Services', 'Contact'];
+        return {
+          message: `Perfect! I've got everything I need. Here's what I'm building:\n\n- **Business:** ${context.businessName || 'Your Business'}\n- **Type:** ${context.businessType || 'Business'}\n- **Style:** ${context.style || 'Professional'}\n- **Pages:** ${pages.join(', ')}\n\nLet me work my magic... ✨`,
+          extractedData: { selectedPages: pages },
+          readyToGenerate: true,
+          suggestions: [],
+        };
+      }
+
+      default:
+        return {
+          message: "Hey! I'm Coach Green. Let's build your website — what's your business name?",
+          suggestions: [],
+        };
+    }
+  }
 
   private mockGenerateWebsite(input: GenerateWebsiteInput): GeneratedWebsite {
     const pages = input.selectedPages || ['Home', 'About', 'Services', 'Contact'];
@@ -456,7 +646,6 @@ Keep the same block structure, only modify the content/data as instructed.`;
           style: { paddingY: 'lg', paddingX: 'md', maxWidth: 'lg' },
         });
       } else {
-        // Generic page
         blocks.push({
           id: generateBlockId(), type: 'hero',
           data: { heading: pageName, subheading: `Learn more about our ${pageName.toLowerCase()}.`, layout: 'simple', alignment: 'center' },
@@ -469,7 +658,6 @@ Keep the same block structure, only modify the content/data as instructed.`;
         });
       }
 
-      // Footer on every page
       blocks.push({
         id: generateBlockId(), type: 'footer',
         data: {
@@ -491,7 +679,7 @@ Keep the same block structure, only modify the content/data as instructed.`;
 
     if (lower.includes('testimonial') || lower.includes('review')) {
       return {
-        message: 'I\'ll add a testimonials section to your home page. This will help build trust with potential customers.',
+        message: "Great idea! Social proof is one of the most powerful conversion tools. I'll add a testimonials section to your home page — this will help build trust with potential customers who are on the fence.",
         operations: [{
           id: `op_${Date.now()}`,
           type: 'add_block',
@@ -500,6 +688,11 @@ Keep the same block structure, only modify the content/data as instructed.`;
             pageSlug: 'home',
             block: createDefaultBlock('testimonials'),
           },
+          preview: {
+            label: 'Add Testimonials',
+            after: 'New testimonials section with customer quotes',
+            blockType: 'testimonials',
+          },
         }],
         suggestions: ['Add customer photos for more authenticity', 'Include star ratings', 'Link to external review sites'],
       };
@@ -507,7 +700,7 @@ Keep the same block structure, only modify the content/data as instructed.`;
 
     if (lower.includes('seo') || lower.includes('search')) {
       return {
-        message: 'Here are my SEO recommendations for your site:\n\n1. **Meta descriptions** — Add unique descriptions for each page (150-160 chars)\n2. **Heading structure** — Ensure each page has exactly one H1 tag\n3. **Image alt text** — Add descriptive alt text to all images\n4. **Internal linking** — Cross-link between related pages\n5. **Content length** — Aim for 300+ words on key pages',
+        message: "Let me analyze your site's SEO. Here are my recommendations:\n\n1. **Meta descriptions** — Add unique descriptions for each page (150-160 chars)\n2. **Heading structure** — Ensure each page has exactly one H1 tag\n3. **Image alt text** — Add descriptive alt text to all images\n4. **Internal linking** — Cross-link between related pages\n5. **Content length** — Aim for 300+ words on key pages\n\nThese changes can significantly boost your search rankings!",
         operations: [],
         suggestions: ['Generate SEO meta tags for all pages', 'Add a blog section for organic traffic', 'Check page load speed'],
       };
@@ -515,14 +708,14 @@ Keep the same block structure, only modify the content/data as instructed.`;
 
     if (lower.includes('customer') || lower.includes('lead') || lower.includes('traffic')) {
       return {
-        message: 'Here are strategies to attract more customers:\n\n1. **Add social proof** — Testimonials and case studies build trust\n2. **Strong CTA above the fold** — Make your value proposition clear immediately\n3. **Content marketing** — A blog drives organic traffic\n4. **Local SEO** — Optimize for local search if you serve a specific area\n5. **Email capture** — Offer something valuable in exchange for email signups',
+        message: "Great question! Here's my playbook for attracting more customers:\n\n1. **Add social proof** — Testimonials and case studies build instant trust\n2. **Strong CTA above the fold** — Make your value proposition crystal clear\n3. **Content marketing** — A blog drives organic traffic over time\n4. **Local SEO** — Huge win if you serve a specific area\n5. **Email capture** — Offer something valuable in exchange for signups\n\nWant me to add any of these to your site?",
         operations: [],
         suggestions: ['Add a testimonials section', 'Create a lead capture CTA', 'Start a blog page'],
       };
     }
 
     return {
-      message: 'I\'m your AI website coach! I can help you:\n\n- **Add sections** — "Add a testimonials section"\n- **Improve SEO** — "How\'s my SEO?"\n- **Business advice** — "How can I get more customers?"\n- **Edit content** — "Update my phone number to 555-9999"\n\nWhat would you like help with?',
+      message: "Hey! I'm Coach Green, your website-building partner. I can help you:\n\n- **Add sections** — \"Add a testimonials section\"\n- **Improve SEO** — \"How's my SEO?\"\n- **Business advice** — \"How can I get more customers?\"\n- **Edit content** — \"Update my phone number to 555-9999\"\n\nWhat would you like to work on?",
       operations: [],
       suggestions: ['Add a testimonials section', 'Improve my SEO', 'How can I get more customers?'],
     };

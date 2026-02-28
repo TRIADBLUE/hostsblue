@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Send, Sparkles, Loader2, Check, XIcon } from 'lucide-react';
+import { X, Send, Sparkles, Loader2 } from 'lucide-react';
 import { useEditor } from './editor-context';
-import { websiteBuilderApi } from '@/lib/api';
+import { websiteBuilderApi, aiCreditsApi } from '@/lib/api';
+import { OperationPreviewList } from './operation-preview';
+import { useQuery } from '@tanstack/react-query';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -9,6 +11,7 @@ interface ChatMessage {
   timestamp: string;
   operations?: any[];
   suggestions?: string[];
+  costCents?: number;
 }
 
 export function AICoachPanel() {
@@ -16,23 +19,31 @@ export function AICoachPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dismissedOps, setDismissedOps] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { data: creditBalance } = useQuery({
+    queryKey: ['ai-credits-balance'],
+    queryFn: aiCreditsApi.getBalance,
+    refetchInterval: 30000,
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || !state.project || loading) return;
+  const handleSend = async (text?: string) => {
+    const msg = (text || input).trim();
+    if (!msg || !state.project || loading) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: input.trim(), timestamp: new Date().toISOString() };
+    const userMsg: ChatMessage = { role: 'user', content: msg, timestamp: new Date().toISOString() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     try {
       const result = await websiteBuilderApi.aiChat(state.project.uuid, {
-        message: input.trim(),
+        message: msg,
         history: messages.map(m => ({ role: m.role, content: m.content })),
       });
 
@@ -44,10 +55,13 @@ export function AICoachPanel() {
         suggestions: result.suggestions,
       };
       setMessages(prev => [...prev, assistantMsg]);
-    } catch (err) {
+    } catch (err: any) {
+      const errorMsg = err?.message?.includes('402')
+        ? "You're running low on AI credits. Add more credits to keep chatting with Coach Green."
+        : 'Sorry, I had a hiccup there. Try again?';
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: errorMsg,
         timestamp: new Date().toISOString(),
       }]);
     } finally {
@@ -65,44 +79,65 @@ export function AICoachPanel() {
     } else if (op.type === 'update_theme' && op.payload) {
       dispatch({ type: 'UPDATE_THEME', theme: op.payload });
     }
+    setDismissedOps(prev => new Set([...prev, op.id]));
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setInput(suggestion);
+  const handleDismissOperation = (op: any) => {
+    setDismissedOps(prev => new Set([...prev, op.id]));
+  };
+
+  const handleAcceptAll = (operations: any[]) => {
+    operations.forEach(op => handleAcceptOperation(op));
   };
 
   const QUICK_SUGGESTIONS = [
     'Add a testimonials section',
-    'Improve my SEO',
-    'How can I get more customers?',
-    'Add social proof to my site',
+    'How can I improve my SEO?',
+    'Help me get more customers',
+    'Make my hero section more compelling',
   ];
+
+  const balanceCents = creditBalance?.balanceCents || 0;
 
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col flex-shrink-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#064A6C]" />
-          <h3 className="text-sm font-semibold text-gray-900">AI Coach</h3>
+          <div className="w-6 h-6 rounded-full bg-[#064A6C] flex items-center justify-center">
+            <Sparkles className="w-3 h-3 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Coach Green</h3>
+          </div>
         </div>
         <button onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: null })} className="text-gray-400 hover:text-gray-600">
           <X className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Credit bar */}
+      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <span className="text-xs text-gray-500">AI Credits</span>
+        <span className={`text-xs font-semibold ${balanceCents > 100 ? 'text-[#064A6C]' : balanceCents > 0 ? 'text-amber-600' : 'text-red-600'}`}>
+          ${(balanceCents / 100).toFixed(2)}
+        </span>
+      </div>
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center pt-4">
-            <Sparkles className="w-8 h-8 text-[#064A6C]/30 mx-auto mb-3" />
-            <p className="text-sm text-gray-500 mb-1">I'm your AI website coach</p>
-            <p className="text-xs text-gray-400 mb-4">Ask me to add sections, improve SEO, or give business advice</p>
+          <div className="text-center pt-2">
+            <div className="w-12 h-12 rounded-full bg-[#064A6C]/10 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-[#064A6C]" />
+            </div>
+            <p className="text-sm font-medium text-gray-900 mb-1">Hey! I'm Coach Green</p>
+            <p className="text-xs text-gray-500 mb-4">Your website-building partner. Ask me anything!</p>
             <div className="space-y-2">
               {QUICK_SUGGESTIONS.map(s => (
                 <button
                   key={s}
-                  onClick={() => handleSuggestionClick(s)}
+                  onClick={() => handleSend(s)}
                   className="w-full text-left px-3 py-2 text-xs bg-gray-50 hover:bg-gray-100 rounded-[7px] text-gray-600 transition-colors"
                 >
                   {s}
@@ -114,43 +149,33 @@ export function AICoachPanel() {
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[90%] rounded-[7px] px-3 py-2 text-sm ${
-              msg.role === 'user'
-                ? 'bg-[#064A6C] text-white'
-                : 'bg-gray-100 text-gray-800'
-            }`}>
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+            <div className="max-w-[90%] space-y-2">
+              <div className={`rounded-[7px] px-3 py-2 text-sm ${
+                msg.role === 'user'
+                  ? 'bg-[#064A6C] text-white'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+              </div>
 
-              {/* Operations (accept/reject) */}
+              {/* Operations with previews */}
               {msg.operations && msg.operations.length > 0 && (
-                <div className="mt-2 space-y-1.5">
-                  {msg.operations.map((op: any, oi: number) => (
-                    <div key={oi} className="bg-white border border-gray-200 rounded-[5px] p-2">
-                      <p className="text-xs text-gray-600 mb-1">{op.description}</p>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => handleAcceptOperation(op)}
-                          className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded text-xs hover:bg-green-100"
-                        >
-                          <Check className="w-3 h-3" /> Accept
-                        </button>
-                        <button className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-xs hover:bg-red-100">
-                          <XIcon className="w-3 h-3" /> Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <OperationPreviewList
+                  operations={msg.operations.filter((op: any) => !dismissedOps.has(op.id))}
+                  onAccept={handleAcceptOperation}
+                  onDismiss={handleDismissOperation}
+                  onAcceptAll={() => handleAcceptAll(msg.operations!.filter((op: any) => !dismissedOps.has(op.id)))}
+                />
               )}
 
               {/* Suggestions */}
               {msg.suggestions && msg.suggestions.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1">
                   {msg.suggestions.map((s: string, si: number) => (
                     <button
                       key={si}
-                      onClick={() => handleSuggestionClick(s)}
-                      className="px-2 py-0.5 bg-white/80 text-[#064A6C] rounded text-[10px] border border-[#064A6C]/20 hover:bg-[#064A6C]/5"
+                      onClick={() => handleSend(s)}
+                      className="px-2 py-0.5 bg-white text-[#064A6C] rounded text-[10px] border border-[#064A6C]/20 hover:bg-[#064A6C]/5 transition-colors"
                     >
                       {s}
                     </button>
@@ -161,10 +186,16 @@ export function AICoachPanel() {
           </div>
         ))}
 
+        {/* Typing indicator */}
         {loading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-[7px] px-3 py-2">
-              <Loader2 className="w-4 h-4 animate-spin text-[#064A6C]" />
+            <div className="bg-gray-100 rounded-[7px] px-3 py-2 flex items-center gap-2">
+              <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 bg-[#064A6C] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-[#064A6C] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-[#064A6C] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+              <span className="text-xs text-gray-400">Coach Green is thinking...</span>
             </div>
           </div>
         )}
@@ -180,18 +211,21 @@ export function AICoachPanel() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-            placeholder="Ask your AI coach..."
+            placeholder="Ask Coach Green..."
             className="flex-1 border border-gray-200 rounded-[7px] px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#064A6C]"
             disabled={loading}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={loading || !input.trim()}
             className="p-2 bg-[#064A6C] text-white rounded-[7px] hover:bg-[#053C58] transition-colors disabled:opacity-50"
           >
             <Send className="w-4 h-4" />
           </button>
         </div>
+        <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+          ~$0.02 per message
+        </p>
       </div>
     </div>
   );

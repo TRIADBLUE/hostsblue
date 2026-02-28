@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { websiteBuilderApi } from '@/lib/api';
-import { Palette, Plus, Loader2, ExternalLink, Edit, Upload, Trash2, Globe, MessageSquare, X, Mail, Clock } from 'lucide-react';
+import { Palette, Plus, Loader2, ExternalLink, Edit, Upload, Trash2, Globe, MessageSquare, X, Mail, Clock, Sparkles } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { CoachGreenWizard } from '@/components/onboarding/coach-green-wizard';
 
 function SubmissionsModal({ projectUuid, projectName, onClose }: { projectUuid: string; projectName: string; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -85,6 +86,7 @@ export function WebsiteBuilderPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [submissionsProject, setSubmissionsProject] = useState<{ uuid: string; name: string } | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ['website-builder', 'projects'],
@@ -134,10 +136,10 @@ export function WebsiteBuilderPage() {
           </div>
         </div>
         <button
-          onClick={() => window.location.href = '/website-builder'}
+          onClick={() => setShowWizard(true)}
           className="btn-primary flex items-center gap-2"
         >
-          <Plus className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" />
           New Project
         </button>
       </div>
@@ -250,7 +252,7 @@ export function WebsiteBuilderPage() {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No website projects yet</h3>
           <p className="text-gray-500 mb-6">Create your first website with our AI-powered builder</p>
           <button
-            onClick={() => window.location.href = '/website-builder'}
+            onClick={() => setShowWizard(true)}
             className="btn-primary"
           >
             Create a Website
@@ -265,6 +267,11 @@ export function WebsiteBuilderPage() {
           projectName={submissionsProject.name}
           onClose={() => setSubmissionsProject(null)}
         />
+      )}
+
+      {/* Coach Green Wizard */}
+      {showWizard && (
+        <CoachGreenWizard onClose={() => setShowWizard(false)} />
       )}
     </div>
   );

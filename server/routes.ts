@@ -2534,6 +2534,25 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
   }
 
+  // ---- Onboarding Chat (Coach Green) ----
+  app.post('/api/v1/website-builder/onboarding/chat', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { ai, billingMode, provider, modelName } = await getAIService(req.user!.userId);
+
+    if (billingMode === 'credits') {
+      const check = await aiCreditsService.canAfford(req.user!.userId, 1);
+      if (!check.allowed) return res.status(402).json(errorResponse(check.reason!));
+    }
+
+    const { message, step, context } = req.body;
+    const startTime = Date.now();
+
+    const result = await ai.onboardingChat({ message, step: step || 'greeting', context: context || {} });
+
+    await logAiUsageAndDeduct(req.user!.userId, billingMode, provider, modelName, 'onboarding_chat', result.usage, undefined, startTime);
+
+    res.json(successResponse(result));
+  }));
+
   app.post('/api/v1/website-builder/projects/:uuid/ai/generate', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
     const project = await getOwnedProject(req.params.uuid, req.user!.userId);
     if (!project) return res.status(404).json(errorResponse('Project not found'));
@@ -2838,6 +2857,56 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     }
     const balance = await aiCreditsService.updateBillingMode(req.user!.userId, mode);
     res.json(successResponse(balance));
+  }));
+
+  // ---- Quick Purchase Credits (in-editor) ----
+  app.post('/api/v1/ai/credits/quick-purchase', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { amountCents } = req.body;
+    if (!amountCents || amountCents < 100) {
+      return res.status(400).json(errorResponse('Minimum purchase is $1.00 (100 cents)'));
+    }
+    if (amountCents > 10000) {
+      return res.status(400).json(errorResponse('Maximum quick-purchase is $100.00'));
+    }
+
+    // Create an order for AI credits
+    const orderNumber = `HB${Date.now().toString(36).toUpperCase()}`;
+    const [order] = await db.insert(schema.orders).values({
+      customerId: req.user!.userId,
+      orderNumber,
+      status: 'pending_payment',
+      subtotal: amountCents,
+      total: amountCents,
+      currency: 'USD',
+    }).returning();
+
+    await db.insert(schema.orderItems).values({
+      orderId: order.id,
+      itemType: 'ai_credits',
+      description: `AI Credits - $${(amountCents / 100).toFixed(2)}`,
+      unitPrice: amountCents,
+      quantity: 1,
+      totalPrice: amountCents,
+      configuration: { amountCents },
+    });
+
+    // Create payment session
+    const { getPaymentProvider } = await import('./services/payment/payment-service.js');
+    const paymentProvider = getPaymentProvider();
+    const baseUrl = process.env.BASE_URL || process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
+
+    const paymentUrl = await paymentProvider.createPaymentSession({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amount: amountCents,
+      currency: 'USD',
+      customerEmail: req.user!.email || '',
+      successUrl: `${baseUrl}/checkout/success?order=${order.uuid}`,
+      cancelUrl: `${baseUrl}/checkout/cancel?order=${order.uuid}`,
+      webhookUrl: `${process.env.APP_URL || baseUrl}/api/v1/webhooks/payment`,
+    });
+
+    res.json(successResponse({ paymentUrl, orderUuid: order.uuid }));
   }));
 
   // ---- Publishing ----
