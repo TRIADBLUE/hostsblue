@@ -7,6 +7,8 @@ import { rateLimiter } from './middleware/rate-limit.js';
 import { OpenSRSIntegration } from './services/opensrs-integration.js';
 import { WPMUDevIntegration } from './services/wpmudev-integration.js';
 import { SwipesBluePayment } from './services/swipesblue-payment.js';
+import { getPaymentProvider, getActiveProviderName } from './services/payment/payment-service.js';
+import { EmailService } from './services/email-service.js';
 import { OpenSRSEmailIntegration } from './services/opensrs-email-integration.js';
 import { OpenSRSSSLIntegration } from './services/opensrs-ssl-integration.js';
 import { SiteLockIntegration } from './services/sitelock-integration.js';
@@ -71,6 +73,14 @@ const asyncHandler = (fn: (req: Request, res: Response) => Promise<any>) => {
   };
 };
 
+function site404Html(): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page Not Found</title>
+<style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;color:#09080E}
+.c{text-align:center;padding:2rem}.c h1{font-size:6rem;margin:0;color:#064A6C;font-weight:800}.c p{color:#4b5563;margin:1rem 0}
+.c a{display:inline-block;background:#064A6C;color:#fff;padding:10px 24px;border-radius:7px;text-decoration:none;font-weight:600;margin-top:8px}
+.c a:hover{background:#053C58}</style></head><body><div class="c"><h1>404</h1><p>The page you're looking for doesn't exist.</p><a href="/">Go Home</a></div></body></html>`;
+}
+
 export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schema>) {
   // Initialize services
   const openSRS = new OpenSRSIntegration();
@@ -85,6 +95,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   const planEnforcement = new PlanEnforcement(db);
   const analyticsAggregation = new AnalyticsAggregation(db);
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+  const emailService = new EmailService();
 
   // Rate limiters
   const authLoginLimiter = rateLimiter({ windowMs: 60 * 1000, max: 10, message: 'Too many login attempts' });
@@ -154,6 +165,9 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       entityId: String(customer.id),
       description: 'Customer registered',
     });
+
+    // Send welcome email (async, non-blocking)
+    emailService.sendWelcome(customer.email, customer.firstName || 'there').catch(() => {});
 
     res.status(201).json(successResponse({
       customer: {
@@ -1424,8 +1438,9 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       .set({ status: 'pending_payment', submittedAt: new Date() })
       .where(eq(schema.orders.id, order.id));
     
-    // Initiate payment with SwipesBlue
-    const paymentUrl = await swipesblue.createPaymentSession({
+    // Initiate payment with active provider
+    const paymentProvider = getPaymentProvider();
+    const paymentUrl = await paymentProvider.createPaymentSession({
       orderId: order.id,
       orderNumber: order.orderNumber,
       amount: order.total,
@@ -1447,10 +1462,11 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   // ============================================================================
   
   app.post('/api/v1/webhooks/payment', asyncHandler(async (req, res) => {
-    const signature = req.headers['x-swipesblue-signature'];
-    
+    const signature = req.headers['x-swipesblue-signature'] || req.headers['stripe-signature'];
+
     // Verify webhook signature
-    if (!swipesblue.verifyWebhookSignature(req.body, signature as string)) {
+    const paymentProvider = getPaymentProvider();
+    if (!paymentProvider.verifyWebhookSignature(req.body, signature as string)) {
       return res.status(401).json(errorResponse('Invalid signature'));
     }
     
@@ -1494,6 +1510,22 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
         
       case 'payment.failed':
         await orchestrator.handlePaymentFailure(data.orderId, data);
+        // Send payment failure email
+        try {
+          const failedOrder = await db.query.orders.findFirst({
+            where: eq(schema.orders.id, data.orderId),
+            with: { customer: true },
+          });
+          if (failedOrder?.customer) {
+            emailService.sendPaymentFailed(failedOrder.customer.email, {
+              customerName: [failedOrder.customer.firstName, failedOrder.customer.lastName].filter(Boolean).join(' ') || 'Customer',
+              orderNumber: failedOrder.orderNumber,
+              amount: failedOrder.total,
+              currency: failedOrder.currency,
+              reason: data.failure_message || 'Payment was declined',
+            }).catch(() => {});
+          }
+        } catch { /* non-critical */ }
         break;
         
       case 'payment.refunded':
@@ -3381,17 +3413,202 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(analytics));
   }));
 
+  // ============================================================================
+  // CUSTOM DOMAINS (Website Builder)
+  // ============================================================================
+
+  // Set custom domain for a project
+  app.patch('/api/v1/website-builder/projects/:uuid/domain', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const { domain } = req.body;
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json(errorResponse('Domain is required'));
+    }
+
+    const cleanDomain = domain.toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/+$/, '');
+    const verificationToken = `hostsblue-verify-${crypto.randomBytes(16).toString('hex')}`;
+
+    // Check if domain is already claimed
+    const existing = await db.query.customDomains.findFirst({
+      where: eq(schema.customDomains.domain, cleanDomain),
+    });
+    if (existing && existing.projectId !== project.id) {
+      return res.status(409).json(errorResponse('Domain is already connected to another project'));
+    }
+
+    if (existing && existing.projectId === project.id) {
+      // Update existing record
+      await db.update(schema.customDomains)
+        .set({ domain: cleanDomain, verified: false, verifiedAt: null, updatedAt: new Date() })
+        .where(eq(schema.customDomains.id, existing.id));
+      res.json(successResponse({
+        domain: cleanDomain,
+        verificationToken: existing.verificationToken,
+        verified: false,
+        dnsInstructions: {
+          type: 'TXT',
+          name: '_hostsblue-verify',
+          value: existing.verificationToken,
+          cname: { name: cleanDomain, value: `${project.slug}.sites.hostsblue.com` },
+        },
+      }));
+    } else {
+      // Create new record
+      const [record] = await db.insert(schema.customDomains).values({
+        projectId: project.id,
+        customerId: req.user!.userId,
+        domain: cleanDomain,
+        verificationToken,
+      }).returning();
+
+      // Also update the project's customDomain field
+      await db.update(schema.websiteProjects)
+        .set({ customDomain: cleanDomain, updatedAt: new Date() })
+        .where(eq(schema.websiteProjects.id, project.id));
+
+      res.json(successResponse({
+        domain: cleanDomain,
+        verificationToken: record.verificationToken,
+        verified: false,
+        dnsInstructions: {
+          type: 'TXT',
+          name: '_hostsblue-verify',
+          value: record.verificationToken,
+          cname: { name: cleanDomain, value: `${project.slug}.sites.hostsblue.com` },
+        },
+      }));
+    }
+  }));
+
+  // Verify custom domain DNS
+  app.post('/api/v1/website-builder/projects/:uuid/domain/verify', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const domainRecord = await db.query.customDomains.findFirst({
+      where: eq(schema.customDomains.projectId, project.id),
+    });
+    if (!domainRecord) {
+      return res.status(404).json(errorResponse('No custom domain configured'));
+    }
+
+    // DNS TXT lookup
+    try {
+      const dns = await import('dns');
+      const records = await dns.promises.resolveTxt(`_hostsblue-verify.${domainRecord.domain}`);
+      const flat = records.flat();
+      const verified = flat.some(r => r === domainRecord.verificationToken);
+
+      if (verified) {
+        await db.update(schema.customDomains)
+          .set({ verified: true, verifiedAt: new Date(), sslStatus: 'active', updatedAt: new Date() })
+          .where(eq(schema.customDomains.id, domainRecord.id));
+
+        res.json(successResponse({ verified: true, domain: domainRecord.domain }));
+      } else {
+        res.json(successResponse({ verified: false, domain: domainRecord.domain, message: 'TXT record not found. DNS changes may take up to 48 hours to propagate.' }));
+      }
+    } catch {
+      res.json(successResponse({ verified: false, domain: domainRecord.domain, message: 'DNS lookup failed. Ensure the TXT record is set correctly.' }));
+    }
+  }));
+
+  // Get custom domain status
+  app.get('/api/v1/website-builder/projects/:uuid/domain', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    const domainRecord = await db.query.customDomains.findFirst({
+      where: eq(schema.customDomains.projectId, project.id),
+    });
+
+    if (!domainRecord) {
+      return res.json(successResponse(null));
+    }
+
+    res.json(successResponse({
+      domain: domainRecord.domain,
+      verified: domainRecord.verified,
+      verifiedAt: domainRecord.verifiedAt,
+      sslStatus: domainRecord.sslStatus,
+      verificationToken: domainRecord.verificationToken,
+      dnsInstructions: {
+        type: 'TXT',
+        name: '_hostsblue-verify',
+        value: domainRecord.verificationToken,
+        cname: { name: domainRecord.domain, value: `${project.slug}.sites.hostsblue.com` },
+      },
+    }));
+  }));
+
+  // Remove custom domain
+  app.delete('/api/v1/website-builder/projects/:uuid/domain', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const project = await getOwnedProject(req.params.uuid, req.user!.userId);
+    if (!project) return res.status(404).json(errorResponse('Project not found'));
+
+    await db.delete(schema.customDomains).where(eq(schema.customDomains.projectId, project.id));
+    await db.update(schema.websiteProjects)
+      .set({ customDomain: null, updatedAt: new Date() })
+      .where(eq(schema.websiteProjects.id, project.id));
+
+    res.json(successResponse(null, 'Custom domain removed'));
+  }));
+
   // ---- Published Site Serving ----
+
+  // Sitemap.xml for published sites
+  app.get('/sites/:slug/sitemap.xml', asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).send('');
+
+    const pages = await db.query.websitePages.findMany({
+      where: eq(schema.websitePages.projectId, project.id),
+      orderBy: schema.websitePages.sortOrder,
+    });
+
+    const baseUrl = project.customDomain
+      ? `https://${project.customDomain}`
+      : `${process.env.APP_URL || 'https://hostsblue.com'}/sites/${project.slug}`;
+
+    const urls = pages.map(p => {
+      const loc = p.isHomePage ? baseUrl : `${baseUrl}/${p.slug}`;
+      const lastmod = p.updatedAt ? new Date(p.updatedAt).toISOString().split('T')[0] : '';
+      return `  <url><loc>${loc}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<changefreq>weekly</changefreq></url>`;
+    }).join('\n');
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+  }));
+
+  // Robots.txt for published sites
+  app.get('/sites/:slug/robots.txt', asyncHandler(async (req, res) => {
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
+    });
+    if (!project) return res.status(404).send('');
+
+    const baseUrl = project.customDomain
+      ? `https://${project.customDomain}`
+      : `${process.env.APP_URL || 'https://hostsblue.com'}/sites/${project.slug}`;
+
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
+  }));
+
   app.get('/sites/:slug', asyncHandler(async (req, res) => {
     const project = await db.query.websiteProjects.findFirst({
       where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
     });
-    if (!project) return res.status(404).send('<h1>Site not found</h1>');
+    if (!project) return res.status(404).send(site404Html());
 
     const page = await db.query.websitePages.findFirst({
       where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.isHomePage, true)),
     });
-    if (!page) return res.status(404).send('<h1>No home page found</h1>');
+    if (!page) return res.status(404).send(site404Html());
 
     const allPages = await db.query.websitePages.findMany({
       where: eq(schema.websitePages.projectId, project.id),
@@ -3414,12 +3631,12 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     const project = await db.query.websiteProjects.findFirst({
       where: and(eq(schema.websiteProjects.slug, req.params.slug), eq(schema.websiteProjects.status, 'published')),
     });
-    if (!project) return res.status(404).send('<h1>Site not found</h1>');
+    if (!project) return res.status(404).send(site404Html());
 
     const page = await db.query.websitePages.findFirst({
       where: and(eq(schema.websitePages.projectId, project.id), eq(schema.websitePages.slug, req.params.pageSlug)),
     });
-    if (!page) return res.status(404).send('<h1>Page not found</h1>');
+    if (!page) return res.status(404).send(site404Html());
 
     const allPages = await db.query.websitePages.findMany({
       where: eq(schema.websitePages.projectId, project.id),
@@ -3971,6 +4188,15 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       .where(eq(schema.webhookEvents.id, webhookEvent.id));
 
     res.json({ received: true });
+  }));
+
+  // ============================================================================
+  // ADMIN — PLATFORM SETTINGS
+  // ============================================================================
+
+  app.get('/api/v1/admin/settings/payment-provider', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    if (!req.user!.isAdmin) return res.status(403).json(errorResponse('Admin only'));
+    res.json(successResponse({ activeProvider: getActiveProviderName() }));
   }));
 
   // Validation error handler

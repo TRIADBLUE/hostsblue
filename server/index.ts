@@ -97,36 +97,44 @@ app.use(async (req, res, next) => {
   }
 
   try {
-    const { eq, and, sql } = await import('drizzle-orm');
-    const project = await db.query.websiteProjects.findFirst({
+    const { eq, and } = await import('drizzle-orm');
+
+    // Check customDomains table for a verified domain
+    const domainRecord = await db.query.customDomains.findFirst({
       where: and(
-        eq(schema.websiteProjects.customDomain, hostname),
-        eq(schema.websiteProjects.status, 'published'),
-        sql`(${schema.websiteProjects.settings}->>'domainVerified')::boolean = true`,
+        eq(schema.customDomains.domain, hostname),
+        eq(schema.customDomains.verified, true),
       ),
     });
+    if (!domainRecord) return next();
 
-    if (project) {
-      const pageSlug = req.path === '/' ? undefined : req.path.replace(/^\//, '').replace(/\/$/, '');
-      const { websitePages } = schema;
-      const page = pageSlug
-        ? await db.query.websitePages.findFirst({ where: and(eq(websitePages.projectId, project.id), eq(websitePages.slug, pageSlug)) })
-        : await db.query.websitePages.findFirst({ where: and(eq(websitePages.projectId, project.id), eq(websitePages.isHomePage, true)) });
+    const project = await db.query.websiteProjects.findFirst({
+      where: and(
+        eq(schema.websiteProjects.id, domainRecord.projectId),
+        eq(schema.websiteProjects.status, 'published'),
+      ),
+    });
+    if (!project) return next();
 
-      if (page) {
-        const { renderPage } = await import('./services/website-renderer.js');
-        const { defaultTheme } = await import('../shared/block-types.js');
-        const allPages = await db.query.websitePages.findMany({ where: eq(websitePages.projectId, project.id), orderBy: websitePages.sortOrder });
-        const theme = (project.theme || defaultTheme) as any;
-        const html = renderPage((page.blocks || []) as any[], {
-          theme,
-          businessName: project.name,
-          seo: (page.seo || {}) as any,
-          siteSlug: project.slug || '',
-          pages: allPages.map(p => ({ slug: p.slug, title: p.title, showInNav: p.showInNav })),
-        });
-        return res.type('html').send(html);
-      }
+    const pageSlug = req.path === '/' ? undefined : req.path.replace(/^\//, '').replace(/\/$/, '');
+    const { websitePages } = schema;
+    const page = pageSlug
+      ? await db.query.websitePages.findFirst({ where: and(eq(websitePages.projectId, project.id), eq(websitePages.slug, pageSlug)) })
+      : await db.query.websitePages.findFirst({ where: and(eq(websitePages.projectId, project.id), eq(websitePages.isHomePage, true)) });
+
+    if (page) {
+      const { renderPage } = await import('./services/website-renderer.js');
+      const { defaultTheme } = await import('../shared/block-types.js');
+      const allPages = await db.query.websitePages.findMany({ where: eq(websitePages.projectId, project.id), orderBy: websitePages.sortOrder });
+      const theme = (project.theme || defaultTheme) as any;
+      const html = renderPage((page.blocks || []) as any[], {
+        theme,
+        businessName: project.name,
+        seo: (page.seo || {}) as any,
+        siteSlug: project.slug || '',
+        pages: allPages.map(p => ({ slug: p.slug, title: p.title, showInNav: p.showInNav })),
+      });
+      return res.type('html').send(html);
     }
   } catch {
     // Fall through to normal routing

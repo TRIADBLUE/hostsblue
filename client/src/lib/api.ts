@@ -188,8 +188,10 @@ export const websiteBuilderApi = {
   // Analytics
   getAnalytics: (uuid: string, days = 30) => fetchApi<any>(`/website-builder/projects/${uuid}/analytics?days=${days}`),
   // Domain
+  getDomain: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain`),
   setDomain: (uuid: string, domain: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain`, { method: 'PATCH', body: JSON.stringify({ domain }) }),
   verifyDomain: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain/verify`, { method: 'POST' }),
+  removeDomain: (uuid: string) => fetchApi<any>(`/website-builder/projects/${uuid}/domain`, { method: 'DELETE' }),
   // Settings
   updateSettings: (uuid: string, settings: any) => fetchApi<any>(`/website-builder/projects/${uuid}/settings`, { method: 'PATCH', body: JSON.stringify(settings) }),
 };

@@ -14,6 +14,9 @@ import { WPMUDevIntegration } from './wpmudev-integration.js';
 import { OpenSRSEmailIntegration } from './opensrs-email-integration.js';
 import { OpenSRSSSLIntegration } from './opensrs-ssl-integration.js';
 import { SiteLockIntegration } from './sitelock-integration.js';
+import { EmailService } from './email-service.js';
+import { HostingProvisioner } from './hosting-provisioner.js';
+import { AiCreditsService } from './ai-credits.js';
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@hostsblue.com';
 
@@ -34,6 +37,9 @@ export class OrderOrchestrator {
   private opensrsEmail: OpenSRSEmailIntegration;
   private opensrsSSL: OpenSRSSSLIntegration;
   private sitelock: SiteLockIntegration;
+  private emailService: EmailService;
+  private hostingProvisioner: HostingProvisioner;
+  private aiCredits: AiCreditsService;
 
   constructor(
     db: NodePgDatabase<typeof schema>,
@@ -49,6 +55,9 @@ export class OrderOrchestrator {
     this.opensrsEmail = opensrsEmail;
     this.opensrsSSL = opensrsSSL;
     this.sitelock = sitelockService;
+    this.emailService = new EmailService();
+    this.hostingProvisioner = new HostingProvisioner(db);
+    this.aiCredits = new AiCreditsService(db);
   }
 
   /**
@@ -225,6 +234,18 @@ export class OrderOrchestrator {
 
         case 'sitelock':
           result = await this.provisionSiteLock(tx, item, customer);
+          break;
+
+        case 'cloud_hosting':
+          result = await this.provisionCloudServer(tx, item, customer);
+          break;
+
+        case 'website_builder':
+          result = await this.activateBuilderSubscription(tx, item, customer);
+          break;
+
+        case 'ai_credits':
+          result = await this.fulfillAiCredits(tx, item, customer);
           break;
 
         default:
@@ -679,6 +700,104 @@ export class OrderOrchestrator {
   }
 
   /**
+   * Provision a cloud server via Kamatera
+   */
+  private async provisionCloudServer(
+    _tx: any,
+    item: schema.OrderItem,
+    customer: schema.Customer
+  ): Promise<any> {
+    const config = item.configuration as Record<string, any>;
+
+    // Use HostingProvisioner which handles DB record creation + Kamatera API
+    const result = await this.hostingProvisioner.provisionServer({
+      customerId: customer.id,
+      orderId: item.orderId,
+      planSlug: config.planSlug || 'starter',
+      name: config.serverName || `server-${Date.now()}`,
+      datacenter: config.datacenter || process.env.KAMATERA_DEFAULT_DATACENTER || 'US-NY2',
+      os: config.os || 'Ubuntu 22.04 64bit',
+    });
+
+    return { externalId: result.uuid, serverId: result.serverId };
+  }
+
+  /**
+   * Activate a website builder subscription
+   */
+  private async activateBuilderSubscription(
+    tx: any,
+    item: schema.OrderItem,
+    customer: schema.Customer
+  ): Promise<any> {
+    const config = item.configuration as Record<string, any>;
+    const plan = config.plan || 'starter';
+
+    const planLimits: Record<string, { maxSites: number; maxPages: number; features: string[] }> = {
+      starter: { maxSites: 1, maxPages: 5, features: [] },
+      professional: { maxSites: 5, maxPages: 20, features: ['seo', 'analytics', 'custom-code', 'forms'] },
+      agency: { maxSites: 50, maxPages: 50, features: ['seo', 'analytics', 'custom-code', 'forms', 'ecommerce', 'white-label', 'client-management', 'custom-domain'] },
+    };
+
+    const limits = planLimits[plan] || planLimits.starter;
+
+    // Upsert builder subscription
+    const existing = await tx.query.builderSubscriptions.findFirst({
+      where: eq(schema.builderSubscriptions.customerId, customer.id),
+    });
+
+    if (existing) {
+      await tx.update(schema.builderSubscriptions)
+        .set({
+          plan,
+          status: 'active',
+          maxSites: limits.maxSites,
+          maxPagesPerSite: limits.maxPages,
+          features: limits.features,
+          orderId: item.orderId,
+          startsAt: new Date(),
+          expiresAt: new Date(Date.now() + (item.termMonths ?? 12) * 30 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.builderSubscriptions.id, existing.id));
+    } else {
+      await tx.insert(schema.builderSubscriptions).values({
+        customerId: customer.id,
+        plan,
+        status: 'active',
+        maxSites: limits.maxSites,
+        maxPagesPerSite: limits.maxPages,
+        features: limits.features,
+        orderId: item.orderId,
+        expiresAt: new Date(Date.now() + (item.termMonths ?? 12) * 30 * 24 * 60 * 60 * 1000),
+      });
+    }
+
+    return { plan };
+  }
+
+  /**
+   * Fulfill AI credits purchase
+   */
+  private async fulfillAiCredits(
+    tx: any,
+    item: schema.OrderItem,
+    customer: schema.Customer
+  ): Promise<any> {
+    const config = item.configuration as Record<string, any>;
+    const amountCents = config.amountCents || item.totalPrice;
+
+    await this.aiCredits.addCredits(
+      customer.id,
+      amountCents,
+      `order-${item.orderId}`,
+      item.orderId
+    );
+
+    return { creditsCents: amountCents };
+  }
+
+  /**
    * Handle payment failure webhook
    */
   async handlePaymentFailure(
@@ -790,45 +909,26 @@ export class OrderOrchestrator {
   }
 
   /**
-   * Send order confirmation email using Resend SDK
+   * Send order confirmation email using EmailService
    */
   private async sendOrderConfirmation(order: any): Promise<void> {
-    if (!process.env.RESEND_API_KEY) {
-      console.log(`[Orchestrator] Resend API key not configured, skipping confirmation email for order ${order.id}`);
-      return;
-    }
+    const customerName = [order.customer?.firstName, order.customer?.lastName]
+      .filter(Boolean)
+      .join(' ') || 'Customer';
 
-    try {
-      const customerName = [order.customer?.firstName, order.customer?.lastName]
-        .filter(Boolean)
-        .join(' ') || 'Customer';
+    const to = order.customer?.email || order.billingEmail;
+    if (!to) return;
 
-      const itemsHtml = order.items
-        .map((item: any) => `<li>${item.description} - $${(item.totalPrice / 100).toFixed(2)}</li>`)
-        .join('');
-
-      const resendClient = getResend();
-      if (!resendClient) return;
-      await resendClient.emails.send({
-        from: FROM_EMAIL,
-        to: order.customer?.email || order.billingEmail,
-        subject: `Order Confirmation - ${order.orderNumber}`,
-        html: `
-          <h1>Thank you for your order, ${customerName}!</h1>
-          <p>Your order <strong>${order.orderNumber}</strong> has been completed successfully.</p>
-          <h2>Order Summary</h2>
-          <ul>${itemsHtml}</ul>
-          <p><strong>Total: $${(order.total / 100).toFixed(2)} ${order.currency}</strong></p>
-          <p>You can view your order details in your <a href="${process.env.CLIENT_URL}/dashboard/orders">hostsblue dashboard</a>.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>Best regards,<br/>The hostsblue Team</p>
-        `,
-      });
-
-      console.log(`[Orchestrator] Sent confirmation email for order ${order.id}`);
-    } catch (error) {
-      console.error(`[Orchestrator] Failed to send confirmation email for order ${order.id}:`, error);
-    }
+    await this.emailService.sendOrderConfirmation(to, {
+      customerName,
+      orderNumber: order.orderNumber,
+      items: order.items.map((item: any) => ({
+        description: item.description,
+        total: item.totalPrice,
+      })),
+      total: order.total,
+      currency: order.currency,
+    });
   }
 
   /**

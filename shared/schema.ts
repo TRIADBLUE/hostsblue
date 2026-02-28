@@ -73,6 +73,7 @@ export const orderItemTypeEnum = pgEnum('order_item_type', [
   'sitelock',
   'website_builder',
   'ai_credits',
+  'cloud_hosting',
 ]);
 
 export const aiCreditTransactionTypeEnum = pgEnum('ai_credit_transaction_type', [
@@ -1506,6 +1507,43 @@ export const cloudSnapshotsRelations = relations(cloudSnapshots, ({ one }) => ({
 }));
 
 // ============================================================================
+// CUSTOM DOMAINS (Website Builder)
+// ============================================================================
+
+export const customDomains = pgTable('custom_domains', {
+  id: serial('id').primaryKey(),
+  uuid: pgUuid('uuid').defaultRandom().notNull().unique(),
+  projectId: integer('project_id').references(() => websiteProjects.id, { onDelete: 'cascade' }).notNull(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  domain: varchar('domain', { length: 253 }).notNull(),
+  verificationToken: varchar('verification_token', { length: 64 }).notNull(),
+  verified: boolean('verified').default(false).notNull(),
+  verifiedAt: timestamp('verified_at'),
+  sslStatus: varchar('ssl_status', { length: 20 }).default('pending').notNull(), // pending, active, failed
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  projectIdx: index('custom_domains_project_idx').on(table.projectId),
+  domainIdx: uniqueIndex('custom_domains_domain_idx').on(table.domain),
+}));
+
+export const customDomainsRelations = relations(customDomains, ({ one }) => ({
+  project: one(websiteProjects, { fields: [customDomains.projectId], references: [websiteProjects.id] }),
+  customer: one(customers, { fields: [customDomains.customerId], references: [customers.id] }),
+}));
+
+// ============================================================================
+// PLATFORM SETTINGS
+// ============================================================================
+
+export const platformSettings = pgTable('platform_settings', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 100 }).notNull().unique(),
+  value: text('value').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ============================================================================
 // ZOD SCHEMAS
 // ============================================================================
 
@@ -1555,6 +1593,10 @@ export const insertCloudServerSchema = createInsertSchema(cloudServers);
 export const selectCloudServerSchema = createSelectSchema(cloudServers);
 export const insertCloudSnapshotSchema = createInsertSchema(cloudSnapshots);
 export const selectCloudSnapshotSchema = createSelectSchema(cloudSnapshots);
+export const insertCustomDomainSchema = createInsertSchema(customDomains);
+export const selectCustomDomainSchema = createSelectSchema(customDomains);
+export const insertPlatformSettingSchema = createInsertSchema(platformSettings);
+export const selectPlatformSettingSchema = createSelectSchema(platformSettings);
 
 // ============================================================================
 // TYPE EXPORTS
@@ -1675,3 +1717,11 @@ export type CloudServer = typeof cloudServers.$inferSelect;
 export type NewCloudServer = typeof cloudServers.$inferInsert;
 export type CloudSnapshot = typeof cloudSnapshots.$inferSelect;
 export type NewCloudSnapshot = typeof cloudSnapshots.$inferInsert;
+
+// Custom domain types
+export type CustomDomain = typeof customDomains.$inferSelect;
+export type NewCustomDomain = typeof customDomains.$inferInsert;
+
+// Platform settings types
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+export type NewPlatformSetting = typeof platformSettings.$inferInsert;
