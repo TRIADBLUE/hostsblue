@@ -1435,6 +1435,77 @@ export const aiUsageLogsRelations = relations(aiUsageLogs, ({ one }) => ({
 }));
 
 // ============================================================================
+// CLOUD SERVERS (Kamatera-powered, hostsblue-branded)
+// ============================================================================
+
+export const cloudServers = pgTable('cloud_servers', {
+  id: serial('id').primaryKey(),
+  uuid: text('uuid').notNull().unique(),
+  customerId: integer('customer_id').notNull().references(() => customers.id),
+  orderId: integer('order_id').references(() => orders.id),
+
+  // Provider identifiers (never exposed to frontend)
+  providerServerId: text('provider_server_id'),
+  provider: text('provider').default('kamatera'),
+
+  // Customer-facing info
+  name: text('name').notNull(),
+  hostname: text('hostname'),
+  planSlug: text('plan_slug').notNull(),
+
+  // Server specs
+  cpu: text('cpu'),
+  ramMB: integer('ram_mb'),
+  diskGB: integer('disk_gb'),
+  datacenter: text('datacenter'),
+  os: text('os'),
+
+  // Network
+  ipv4: text('ipv4'),
+  ipv6: text('ipv6'),
+
+  // Status
+  status: text('status').default('provisioning'),
+  provisionCommandId: text('provision_command_id'),
+
+  // Billing
+  monthlyPrice: integer('monthly_price'),
+  billingCycle: text('billing_cycle').default('monthly'),
+
+  // Timestamps
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+  terminatedAt: timestamp('terminated_at'),
+}, (table) => ({
+  customerIdx: index('cloud_servers_customer_idx').on(table.customerId),
+  statusIdx: index('cloud_servers_status_idx').on(table.status),
+}));
+
+export const cloudServersRelations = relations(cloudServers, ({ one, many }) => ({
+  customer: one(customers, { fields: [cloudServers.customerId], references: [customers.id] }),
+  order: one(orders, { fields: [cloudServers.orderId], references: [orders.id] }),
+  snapshots: many(cloudSnapshots),
+}));
+
+// ============================================================================
+// CLOUD SERVER SNAPSHOTS
+// ============================================================================
+
+export const cloudSnapshots = pgTable('cloud_snapshots', {
+  id: serial('id').primaryKey(),
+  serverId: integer('server_id').notNull().references(() => cloudServers.id),
+  providerSnapshotId: text('provider_snapshot_id'),
+  name: text('name').notNull(),
+  sizeGB: integer('size_gb'),
+  status: text('status').default('creating'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const cloudSnapshotsRelations = relations(cloudSnapshots, ({ one }) => ({
+  server: one(cloudServers, { fields: [cloudSnapshots.serverId], references: [cloudServers.id] }),
+}));
+
+// ============================================================================
 // ZOD SCHEMAS
 // ============================================================================
 
@@ -1480,6 +1551,10 @@ export const insertAiCreditTransactionSchema = createInsertSchema(aiCreditTransa
 export const selectAiCreditTransactionSchema = createSelectSchema(aiCreditTransactions);
 export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogs);
 export const selectAiUsageLogSchema = createSelectSchema(aiUsageLogs);
+export const insertCloudServerSchema = createInsertSchema(cloudServers);
+export const selectCloudServerSchema = createSelectSchema(cloudServers);
+export const insertCloudSnapshotSchema = createInsertSchema(cloudSnapshots);
+export const selectCloudSnapshotSchema = createSelectSchema(cloudSnapshots);
 
 // ============================================================================
 // TYPE EXPORTS
@@ -1594,3 +1669,9 @@ export type NewStoreOrderItem = typeof storeOrderItems.$inferInsert;
 // Agency types
 export type AgencyClient = typeof agencyClients.$inferSelect;
 export type NewAgencyClient = typeof agencyClients.$inferInsert;
+
+// Cloud server types
+export type CloudServer = typeof cloudServers.$inferSelect;
+export type NewCloudServer = typeof cloudServers.$inferInsert;
+export type CloudSnapshot = typeof cloudSnapshots.$inferSelect;
+export type NewCloudSnapshot = typeof cloudSnapshots.$inferInsert;

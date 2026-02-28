@@ -17,6 +17,8 @@ import type { ProviderConfig } from './services/ai-provider.js';
 import { AiCreditsService } from './services/ai-credits.js';
 import { PlanEnforcement } from './services/plan-enforcement.js';
 import { AnalyticsAggregation } from './services/analytics-aggregation.js';
+import { HostingProvisioner } from './services/hosting-provisioner.js';
+import { CLOUD_HOSTING_PLANS, DATACENTERS, OS_IMAGES, type CloudPlanSlug } from '../shared/hosting-plans.js';
 import { renderPage } from './services/website-renderer.js';
 import { encryptCredential, decryptCredential } from './services/wpmudev-integration.js';
 import { getTemplateById, templates as allTemplates } from '../shared/templates/index.js';
@@ -37,7 +39,7 @@ const createOrderSchema = z.object({
       'domain_registration', 'domain_transfer', 'domain_renewal',
       'hosting_plan', 'hosting_addon', 'privacy_protection',
       'email_service', 'ssl_certificate', 'sitelock', 'website_builder',
-      'ai_credits',
+      'ai_credits', 'cloud_hosting',
     ]),
     domain: z.string().optional(),
     tld: z.string().optional(),
@@ -79,6 +81,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   const sitelockService = new SiteLockIntegration();
   const orchestrator = new OrderOrchestrator(db, openSRS, wpmudev, opensrsEmail, opensrsSSL, sitelockService);
   const aiCreditsService = new AiCreditsService(db);
+  const hostingProvisioner = new HostingProvisioner(db);
   const planEnforcement = new PlanEnforcement(db);
   const analyticsAggregation = new AnalyticsAggregation(db);
   const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -853,9 +856,214 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   }));
 
   // ============================================================================
+  // CLOUD HOSTING ROUTES
+  // ============================================================================
+
+  // Get cloud hosting options (public)
+  app.get('/api/v1/hosting/cloud/options', asyncHandler(async (req, res) => {
+    res.json(successResponse({
+      plans: Object.entries(CLOUD_HOSTING_PLANS).map(([slug, plan]) => ({
+        slug,
+        ...plan,
+      })),
+      datacenters: DATACENTERS,
+      images: OS_IMAGES,
+    }));
+  }));
+
+  // List customer's cloud servers
+  app.get('/api/v1/hosting/cloud/servers', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const servers = await db
+      .select({
+        id: schema.cloudServers.id,
+        uuid: schema.cloudServers.uuid,
+        name: schema.cloudServers.name,
+        planSlug: schema.cloudServers.planSlug,
+        cpu: schema.cloudServers.cpu,
+        ramMB: schema.cloudServers.ramMB,
+        diskGB: schema.cloudServers.diskGB,
+        datacenter: schema.cloudServers.datacenter,
+        os: schema.cloudServers.os,
+        ipv4: schema.cloudServers.ipv4,
+        status: schema.cloudServers.status,
+        monthlyPrice: schema.cloudServers.monthlyPrice,
+        createdAt: schema.cloudServers.createdAt,
+      })
+      .from(schema.cloudServers)
+      .where(eq(schema.cloudServers.customerId, customerId))
+      .orderBy(desc(schema.cloudServers.createdAt));
+
+    res.json(successResponse(servers));
+  }));
+
+  // Get cloud server details
+  app.get('/api/v1/hosting/cloud/servers/:uuid', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    // Strip provider-internal fields
+    const { providerServerId, provider, provisionCommandId, ...safeServer } = server;
+    res.json(successResponse(safeServer));
+  }));
+
+  // Provision new cloud server
+  app.post('/api/v1/hosting/cloud/servers', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const body = z.object({
+      planSlug: z.enum(['cloud-developer', 'cloud-startup', 'cloud-scale', 'cloud-enterprise'] as const),
+      name: z.string().min(1).max(63),
+      datacenter: z.string().min(2),
+      os: z.string().min(1),
+    }).parse(req.body);
+
+    const result = await hostingProvisioner.provisionServer({
+      customerId,
+      planSlug: body.planSlug,
+      name: body.name,
+      datacenter: body.datacenter,
+      os: body.os,
+    });
+
+    res.status(201).json(successResponse(result, 'Server provisioning started'));
+  }));
+
+  // Power control (on/off/reboot)
+  app.post('/api/v1/hosting/cloud/servers/:uuid/power', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const { action } = z.object({ action: z.enum(['on', 'off', 'reboot']) }).parse(req.body);
+
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    await hostingProvisioner.powerAction(server.id, customerId, action);
+    res.json(successResponse(null, `Power ${action} initiated`));
+  }));
+
+  // Terminate cloud server
+  app.delete('/api/v1/hosting/cloud/servers/:uuid', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    await hostingProvisioner.terminateServer(server.id, customerId);
+    res.json(successResponse(null, 'Server terminated'));
+  }));
+
+  // Resize cloud server
+  app.put('/api/v1/hosting/cloud/servers/:uuid/resize', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const { planSlug } = z.object({
+      planSlug: z.enum(['cloud-developer', 'cloud-startup', 'cloud-scale', 'cloud-enterprise'] as const),
+    }).parse(req.body);
+
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    await hostingProvisioner.resizeServer(server.id, customerId, planSlug);
+    res.json(successResponse(null, 'Server resize initiated'));
+  }));
+
+  // List snapshots for a cloud server
+  app.get('/api/v1/hosting/cloud/servers/:uuid/snapshots', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    const snapshots = await hostingProvisioner.listSnapshots(server.id, customerId);
+    res.json(successResponse(snapshots));
+  }));
+
+  // Create snapshot
+  app.post('/api/v1/hosting/cloud/servers/:uuid/snapshots', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const { name } = z.object({ name: z.string().min(1).max(100) }).parse(req.body);
+
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    const snapshot = await hostingProvisioner.createSnapshot(server.id, customerId, name);
+    res.status(201).json(successResponse(snapshot, 'Snapshot creation started'));
+  }));
+
+  // Revert snapshot
+  app.put('/api/v1/hosting/cloud/servers/:uuid/snapshots/:snapId', requireAuth, asyncHandler(async (req, res) => {
+    const customerId = (req as any).user.id;
+    const snapId = parseInt(req.params.snapId);
+
+    const server = await db.query.cloudServers.findFirst({
+      where: and(
+        eq(schema.cloudServers.uuid, req.params.uuid),
+        eq(schema.cloudServers.customerId, customerId)
+      ),
+    });
+    if (!server) return res.status(404).json(errorResponse('Server not found'));
+
+    await hostingProvisioner.revertSnapshot(server.id, customerId, snapId);
+    res.json(successResponse(null, 'Snapshot revert initiated'));
+  }));
+
+  // Admin: list all cloud servers
+  app.get('/api/v1/admin/cloud/servers', requireAuth, asyncHandler(async (req, res) => {
+    const user = (req as any).user;
+    if (user.role !== 'admin') return res.status(403).json(errorResponse('Admin access required'));
+
+    const servers = await db
+      .select({
+        id: schema.cloudServers.id,
+        uuid: schema.cloudServers.uuid,
+        name: schema.cloudServers.name,
+        planSlug: schema.cloudServers.planSlug,
+        datacenter: schema.cloudServers.datacenter,
+        ipv4: schema.cloudServers.ipv4,
+        status: schema.cloudServers.status,
+        monthlyPrice: schema.cloudServers.monthlyPrice,
+        createdAt: schema.cloudServers.createdAt,
+        customerId: schema.cloudServers.customerId,
+        customerEmail: schema.customers.email,
+      })
+      .from(schema.cloudServers)
+      .leftJoin(schema.customers, eq(schema.cloudServers.customerId, schema.customers.id))
+      .orderBy(desc(schema.cloudServers.createdAt));
+
+    res.json(successResponse(servers));
+  }));
+
+  // ============================================================================
   // ORDER ROUTES
   // ============================================================================
-  
+
   // Create order (cart checkout)
   app.post('/api/v1/orders', requireAuth, asyncHandler(async (req, res) => {
     const { items, couponCode } = createOrderSchema.parse(req.body);

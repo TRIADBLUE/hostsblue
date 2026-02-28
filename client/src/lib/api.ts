@@ -234,6 +234,25 @@ export const aiCreditsApi = {
     fetchApi<any>('/ai/credits/billing-mode', { method: 'PUT', body: JSON.stringify({ mode }) }),
 };
 
+export const cloudHostingApi = {
+  getOptions: () => fetchApi<any>('/hosting/cloud/options'),
+  getServers: () => fetchApi<any[]>('/hosting/cloud/servers'),
+  getServer: (uuid: string) => fetchApi<any>(`/hosting/cloud/servers/${uuid}`),
+  createServer: (data: { planSlug: string; name: string; datacenter: string; os: string }) =>
+    fetchApi<any>('/hosting/cloud/servers', { method: 'POST', body: JSON.stringify(data) }),
+  powerAction: (uuid: string, action: 'on' | 'off' | 'reboot') =>
+    fetchApi<any>(`/hosting/cloud/servers/${uuid}/power`, { method: 'POST', body: JSON.stringify({ action }) }),
+  terminateServer: (uuid: string) =>
+    fetchApi<any>(`/hosting/cloud/servers/${uuid}`, { method: 'DELETE' }),
+  resizeServer: (uuid: string, planSlug: string) =>
+    fetchApi<any>(`/hosting/cloud/servers/${uuid}/resize`, { method: 'PUT', body: JSON.stringify({ planSlug }) }),
+  getSnapshots: (uuid: string) => fetchApi<any[]>(`/hosting/cloud/servers/${uuid}/snapshots`),
+  createSnapshot: (uuid: string, name: string) =>
+    fetchApi<any>(`/hosting/cloud/servers/${uuid}/snapshots`, { method: 'POST', body: JSON.stringify({ name }) }),
+  revertSnapshot: (uuid: string, snapId: number) =>
+    fetchApi<any>(`/hosting/cloud/servers/${uuid}/snapshots/${snapId}`, { method: 'PUT' }),
+};
+
 export const supportApi = {
   getTickets: () => fetchApi<any[]>('/support/tickets'),
   getTicket: (uuid: string) => fetchApi<any>(`/support/tickets/${uuid}`),

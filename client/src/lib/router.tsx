@@ -21,6 +21,7 @@ import { WebsiteEditorPage } from '@/pages/dashboard/website-editor';
 import { WebsiteAnalyticsPage } from '@/pages/dashboard/website-analytics';
 import { StoreManagerPage } from '@/pages/dashboard/store-manager';
 import { AgencyClientsPage } from '@/pages/dashboard/agency-clients';
+import { ServersPage } from '@/pages/dashboard/servers';
 import { BillingPage } from '@/pages/dashboard/billing';
 import { SupportPage } from '@/pages/dashboard/support';
 import { SettingsPage } from '@/pages/dashboard/settings';
@@ -51,6 +52,7 @@ import { PanelBuilderPage } from '@/pages/panel/builder';
 import { PanelSupportPage } from '@/pages/panel/support';
 import { PanelRevenuePage } from '@/pages/panel/revenue';
 import { PanelSettingsPage } from '@/pages/panel/settings';
+import { PanelCloudPage } from '@/pages/panel/cloud';
 
 export const router = createBrowserRouter([
   {
@@ -87,6 +89,7 @@ export const router = createBrowserRouter([
       { path: 'domains/:uuid', element: <DomainDetailPage /> },
       { path: 'hosting', element: <HostingPage /> },
       { path: 'hosting/:uuid', element: <HostingDetailPage /> },
+      { path: 'servers', element: <ServersPage /> },
       { path: 'orders', element: <OrdersPage /> },
       { path: 'email', element: <EmailPage /> },
       { path: 'ssl', element: <SslPage /> },
@@ -121,6 +124,7 @@ export const router = createBrowserRouter([
       { path: 'orders', element: <PanelOrdersPage /> },
       { path: 'domains', element: <PanelDomainsPage /> },
       { path: 'hosting', element: <PanelHostingPage /> },
+      { path: 'cloud', element: <PanelCloudPage /> },
       { path: 'email', element: <PanelEmailPage /> },
       { path: 'ssl', element: <PanelSslPage /> },
       { path: 'builder', element: <PanelBuilderPage /> },

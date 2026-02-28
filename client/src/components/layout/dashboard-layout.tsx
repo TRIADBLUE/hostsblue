@@ -1,6 +1,6 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import {
-  LayoutDashboard, Globe, Server, Mail, Shield, Lock, Palette, ShoppingCart,
+  LayoutDashboard, Globe, Server, Cloud, Mail, Shield, Lock, Palette, ShoppingCart,
   CreditCard, LifeBuoy, Settings, LogOut, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -10,6 +10,7 @@ const mainItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
   { icon: Globe, label: 'Domains', href: '/dashboard/domains' },
   { icon: Server, label: 'Hosting', href: '/dashboard/hosting' },
+  { icon: Cloud, label: 'Cloud Servers', href: '/dashboard/servers' },
   { icon: Mail, label: 'Email', href: '/dashboard/email' },
   { icon: Lock, label: 'SSL Certificates', href: '/dashboard/ssl' },
   { icon: Shield, label: 'SiteLock', href: '/dashboard/sitelock' },
