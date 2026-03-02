@@ -4,6 +4,7 @@ entrypoint = "server/index.ts"
 
 [nix]
 channel = "unstable"
+packages = ["psmisc"]
 
 [build]
 target = "build"
