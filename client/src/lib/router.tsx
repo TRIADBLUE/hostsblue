@@ -25,6 +25,7 @@ import { ServersPage } from '@/pages/dashboard/servers';
 import { BillingPage } from '@/pages/dashboard/billing';
 import { SupportPage } from '@/pages/dashboard/support';
 import { SettingsPage } from '@/pages/dashboard/settings';
+import { TasksPage } from '@/pages/dashboard/tasks';
 import { CheckoutPage } from '@/pages/checkout/checkout';
 import { CheckoutSuccessPage } from '@/pages/checkout/success';
 import { CheckoutCancelPage } from '@/pages/checkout/cancel';
@@ -37,6 +38,7 @@ import { PricingPage } from '@/pages/pricing/index';
 import { AboutPage } from '@/pages/about/index';
 import { SupportPage as PublicSupportPage } from '@/pages/support/index';
 import { ForgotPasswordPage } from '@/pages/auth/forgot-password';
+import { MagicLinkPage } from '@/pages/auth/magic-link';
 
 // Panel Pages (Admin)
 import { PanelLoginPage } from '@/pages/panel/login';
@@ -64,6 +66,7 @@ export const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
+      { path: 'auth/magic-link', element: <MagicLinkPage /> },
       { path: 'domains/search', element: <DomainSearchPage /> },
       { path: 'hosting', element: <HostingPlansPage /> },
       { path: 'email', element: <EmailPlansPage /> },
@@ -99,6 +102,7 @@ export const router = createBrowserRouter([
       { path: 'website-builder/:uuid/analytics', element: <WebsiteAnalyticsPage /> },
       { path: 'website-builder/:uuid/store', element: <StoreManagerPage /> },
       { path: 'website-builder/clients', element: <AgencyClientsPage /> },
+      { path: 'tasks', element: <TasksPage /> },
       { path: 'billing', element: <BillingPage /> },
       { path: 'support', element: <SupportPage /> },
       { path: 'settings', element: <SettingsPage /> },

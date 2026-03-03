@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Brandsignature } from '@/components/ui/brandsignature';
-import { panelApi } from '@/lib/api';
+import { panelApi, authApi } from '@/lib/api';
 import {
   BarChart3,
   Users,
@@ -38,6 +39,19 @@ const sidebarLinks = [
 export function PanelLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Auth gate: verify admin access
+  const { data: me, isLoading: authLoading } = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: () => authApi.me(),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (!authLoading && (!me || !me.isAdmin)) {
+      navigate('/panel/login', { replace: true });
+    }
+  }, [me, authLoading, navigate]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any>(null);
@@ -121,6 +135,18 @@ export function PanelLayout() {
   const orders = searchResults?.orders || [];
   const domains = searchResults?.domains || [];
   const hasResults = customers.length > 0 || orders.length > 0 || domains.length > 0;
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!me || !me.isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex bg-gray-50">

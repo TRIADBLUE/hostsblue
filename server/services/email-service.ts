@@ -207,6 +207,19 @@ export class EmailService {
     await this.send(to, `SSL Issued — ${data.domainName}`, brandedLayout('SSL Issued', body));
   }
 
+  async sendMagicLink(to: string, data: {
+    customerName: string;
+    loginUrl: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Sign In to hostsblue</h2>
+      <p>Hi ${data.customerName}, click the button below to sign in to your account. No password needed.</p>
+      ${btn('Sign In', data.loginUrl)}
+      <p style="margin-top:16px;color:#6b7280;font-size:13px;">This link expires in 15 minutes. If you didn't request this, you can safely ignore this email.</p>
+    `;
+    await this.send(to, 'Sign In to hostsblue', brandedLayout('Magic Link', body));
+  }
+
   async sendGeneric(to: string, subject: string, heading: string, message: string, ctaText?: string, ctaUrl?: string): Promise<void> {
     const body = `
       <h2 style="margin:0 0 16px;color:#09080E;">${heading}</h2>

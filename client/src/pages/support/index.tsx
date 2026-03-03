@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Send, Globe, Server, Mail, Shield, CreditCard, Rocket } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 
 const categories = [
   { icon: Rocket, title: 'Getting Started', desc: 'Account setup, first steps, tutorials', link: '#' },
@@ -52,6 +53,7 @@ export function SupportPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="Support" description="Get help with domains, hosting, email, SSL, and more. Browse FAQs, contact support, or find step-by-step guides." />
       {/* Hero */}
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">How Can We Help?</h1>

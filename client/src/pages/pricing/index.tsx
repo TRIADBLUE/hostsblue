@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Check, Globe, Server, Mail, Lock, Shield, Palette } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 
 export function PricingPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="Pricing" description="Simple, transparent pricing for domains, hosting, email, SSL, and website builder. No hidden fees or surprise renewals." />
       {/* Hero */}
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">

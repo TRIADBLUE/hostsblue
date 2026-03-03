@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { domainApi } from '@/lib/api';
 import { Search, Loader2, Check, X, Globe, ShoppingCart, Shield, ArrowRight, CheckCircle, Lock } from 'lucide-react';
 import { Link, useOutletContext } from 'react-router-dom';
+import { MetaTags } from '@/components/seo/meta-tags';
 import type { CartItem } from '@/hooks/use-cart';
 
 interface CartContext {
@@ -56,6 +57,7 @@ export function DomainSearchPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
+      <MetaTags title="Domain Search" description="Find and register the perfect domain name for your business. Competitive pricing on .com, .net, .org, and 500+ TLDs." />
       <div className="text-center mb-12">
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
           Find Your Perfect Domain

@@ -1,7 +1,7 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, Server, Cloud, Mail, Shield, Lock, Palette, ShoppingCart,
-  CreditCard, LifeBuoy, Settings, LogOut, ExternalLink
+  CreditCard, LifeBuoy, Settings, LogOut, ExternalLink, ListTodo
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Brandsignature } from '@/components/ui/brandsignature';
@@ -15,6 +15,7 @@ const mainItems = [
   { icon: Lock, label: 'SSL Certificates', href: '/dashboard/ssl' },
   { icon: Shield, label: 'SiteLock', href: '/dashboard/sitelock' },
   { icon: Palette, label: 'Website Builder', href: '/dashboard/website-builder' },
+  { icon: ListTodo, label: 'Tasks', href: '/dashboard/tasks' },
   { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders' },
   { icon: CreditCard, label: 'Billing', href: '/dashboard/billing' },
   { icon: LifeBuoy, label: 'Support', href: '/dashboard/support' },

@@ -4,6 +4,7 @@ import { Globe, Server, Mail, Shield, Sparkles, Zap, Headphones, Clock, Check, S
 import { DomainSearch } from '@/components/domain-search';
 import { AIBuilder } from '@/components/ai-builder';
 import { Brandsignature } from '@/components/ui/brandsignature';
+import { MetaTags } from '@/components/seo/meta-tags';
 
 /* ------------------------------------------------------------------ */
 /*  Scroll-reveal hook + animated Section wrapper                      */
@@ -185,6 +186,7 @@ function HowItWorks() {
 export function HomePage() {
   return (
     <div>
+      <MetaTags title="hostsblue — Domains, Hosting & Website Builder" description="Register domains, launch managed hosting, deploy cloud servers, and build AI-powered websites — all from one platform." />
 
       {/* ============================================================ */}
       {/* SECTION 1 — HERO                                             */}

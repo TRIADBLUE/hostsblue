@@ -73,6 +73,10 @@ export const authApi = {
     fetchApi<any>('/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   changePassword: (data: { currentPassword: string; newPassword: string }) =>
     fetchApi<void>('/auth/password', { method: 'PATCH', body: JSON.stringify(data) }),
+  requestMagicLink: (email: string) =>
+    fetchApi<void>('/auth/magic-link/request', { method: 'POST', body: JSON.stringify({ email }) }),
+  verifyMagicLink: (token: string) =>
+    fetchApi<{ customer: any }>(`/auth/magic-link/verify?token=${encodeURIComponent(token)}`),
 };
 
 export const domainApi = {
@@ -265,6 +269,19 @@ export const supportApi = {
   createTicket: (data: any) => fetchApi<any>('/support/tickets', { method: 'POST', body: JSON.stringify(data) }),
   addMessage: (ticketUuid: string, body: string) =>
     fetchApi<any>(`/support/tickets/${ticketUuid}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),
+};
+
+export const widgetTokenApi = {
+  create: (data: { label?: string; allowedOrigins?: string[] }) =>
+    fetchApi<any>('/widget-tokens', { method: 'POST', body: JSON.stringify(data) }),
+  list: () => fetchApi<any[]>('/widget-tokens'),
+  revoke: (id: number) => fetchApi<void>(`/widget-tokens/${id}`, { method: 'DELETE' }),
+};
+
+export const coachGreenApi = {
+  chat: (data: { message: string; context?: string; sessionId?: number }) =>
+    fetchApi<any>('/coach-green/chat', { method: 'POST', body: JSON.stringify(data) }),
+  suggestions: () => fetchApi<any[]>('/coach-green/suggestions'),
 };
 
 // Panel (admin) API — uses /api/panel prefix

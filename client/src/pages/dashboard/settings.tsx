@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi, aiSettingsApi, aiCreditsApi } from '@/lib/api';
+import { authApi, aiSettingsApi, aiCreditsApi, widgetTokenApi } from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
-import { Loader2, Save, User, Lock, Bell, Bot, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, Save, User, Lock, Bell, Bot, CheckCircle, XCircle, Key, Copy, Trash2, Plus } from 'lucide-react';
 
 const NOTIF_STORAGE_KEY = 'hostsblue_notification_prefs';
 
@@ -372,8 +372,125 @@ export function SettingsPage() {
         </div>
       </div>
 
+      {/* Widget Integration */}
+      <WidgetIntegrationSettings />
+
       {/* AI Provider Configuration */}
       <AIProviderSettings />
+    </div>
+  );
+}
+
+// ============================================================================
+// Widget Integration Settings Sub-Component
+// ============================================================================
+
+function WidgetIntegrationSettings() {
+  const queryClient = useQueryClient();
+  const [newLabel, setNewLabel] = useState('');
+  const [newOrigins, setNewOrigins] = useState('');
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const { data: tokens, isLoading } = useQuery({
+    queryKey: ['widget-tokens'],
+    queryFn: () => widgetTokenApi.list(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => widgetTokenApi.create({
+      label: newLabel || 'Default',
+      allowedOrigins: newOrigins ? newOrigins.split(',').map(o => o.trim()).filter(Boolean) : [],
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['widget-tokens'] });
+      setNewLabel('');
+      setNewOrigins('');
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (id: number) => widgetTokenApi.revoke(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['widget-tokens'] }),
+  });
+
+  const copyEmbed = (token: string) => {
+    const snippet = `<script src="https://consoleblue.com/widget/tasks.js" data-token="${token}"></script>`;
+    navigator.clipboard.writeText(snippet);
+    const id = tokens?.find((t: any) => t.token === token)?.id;
+    if (id) {
+      setCopied(id);
+      setTimeout(() => setCopied(null), 2000);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-[7px] p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-teal-50 rounded-[7px] flex items-center justify-center">
+          <Key className="w-5 h-5 text-[#064A6C]" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Widget Integration</h2>
+          <p className="text-sm text-gray-500">Generate tokens for the consoleblue task widget</p>
+        </div>
+      </div>
+
+      {/* Create new token */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <input
+          type="text"
+          placeholder="Label (e.g. My Website)"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-[7px] focus:outline-none focus:ring-2 focus:ring-[#064A6C]/20 focus:border-[#064A6C]"
+        />
+        <input
+          type="text"
+          placeholder="Allowed origins (comma-separated)"
+          value={newOrigins}
+          onChange={(e) => setNewOrigins(e.target.value)}
+          className="flex-1 min-w-[200px] px-3 py-2 text-sm border border-gray-200 rounded-[7px] focus:outline-none focus:ring-2 focus:ring-[#064A6C]/20 focus:border-[#064A6C]"
+        />
+        <button
+          onClick={() => createMutation.mutate()}
+          disabled={createMutation.isPending}
+          className="px-4 py-2 text-sm font-medium bg-[#064A6C] hover:bg-[#053C58] text-white rounded-[7px] transition-colors flex items-center gap-2 disabled:opacity-50"
+        >
+          {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Generate Token
+        </button>
+      </div>
+
+      {/* Token list */}
+      {isLoading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#064A6C] animate-spin" /></div>
+      ) : tokens && tokens.length > 0 ? (
+        <div className="space-y-3">
+          {tokens.map((t: any) => (
+            <div key={t.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-[7px] text-sm">
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-[#09080E]">{t.label || 'Unnamed'}</div>
+                <code className="text-xs text-[#4B5563] break-all">{t.token.slice(0, 16)}...{t.token.slice(-8)}</code>
+              </div>
+              <button
+                onClick={() => copyEmbed(t.token)}
+                className="px-3 py-1.5 text-xs font-medium text-[#064A6C] hover:bg-teal-50 border border-[#064A6C] rounded-[7px] transition-colors flex items-center gap-1.5"
+              >
+                {copied === t.id ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied === t.id ? 'Copied!' : 'Copy Embed'}
+              </button>
+              <button
+                onClick={() => revokeMutation.mutate(t.id)}
+                className="p-1.5 text-red-500 hover:bg-red-50 rounded-[7px] transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-[#4B5563] text-center py-4">No widget tokens yet. Generate one to embed the consoleblue widget.</p>
+      )}
     </div>
   );
 }

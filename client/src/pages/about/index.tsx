@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Shield, Zap, Eye, Heart } from 'lucide-react';
 import { Brandsignature } from '@/components/ui/brandsignature';
+import { MetaTags } from '@/components/seo/meta-tags';
 
 export function AboutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="About hostsblue" description="Building the next generation of web infrastructure tools. Domains, hosting, email, and AI-powered website building for businesses of every size." />
       {/* Hero */}
       <div className="text-center mb-16 max-w-3xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">About hostsblue</h1>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Check, Shield, Lock, ChevronDown, Globe, AlertTriangle } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 import type { CartItem } from '@/hooks/use-cart';
 
 interface CartContext {
@@ -185,6 +186,7 @@ export function SecurityPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="SSL Certificates & Security" description="Protect your website with SSL certificates, SiteLock malware scanning, and web application firewall. Free SSL with hosting." />
       {/* Hero */}
       <div className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">

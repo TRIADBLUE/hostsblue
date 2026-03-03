@@ -247,6 +247,75 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json(successResponse(null, 'Logged out'));
   }));
 
+  // Magic link: request
+  app.post('/api/v1/auth/magic-link/request', rateLimiter({ windowMs: 60000, max: 5, message: 'Too many magic link requests' }), asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json(errorResponse('Email is required'));
+
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.email, email),
+    });
+
+    // Always return success (don't reveal if email exists)
+    if (customer && customer.isActive) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      await db.update(schema.customers)
+        .set({ magicLinkToken: token, magicLinkExpiresAt: expiresAt })
+        .where(eq(schema.customers.id, customer.id));
+
+      const clientUrl = process.env.CLIENT_URL || 'https://hostsblue.com';
+      const loginUrl = `${clientUrl}/auth/magic-link?token=${token}`;
+
+      emailService.sendMagicLink(customer.email, {
+        customerName: customer.firstName || 'there',
+        loginUrl,
+      }).catch(() => {});
+    }
+
+    res.json(successResponse(null, 'If that email is registered, a login link has been sent.'));
+  }));
+
+  // Magic link: verify
+  app.get('/api/v1/auth/magic-link/verify', asyncHandler(async (req, res) => {
+    const { token } = req.query;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json(errorResponse('Token is required'));
+    }
+
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.magicLinkToken, token),
+    });
+
+    if (!customer || !customer.magicLinkExpiresAt || customer.magicLinkExpiresAt < new Date()) {
+      return res.status(400).json(errorResponse('Invalid or expired magic link', 'MAGIC_LINK_INVALID'));
+    }
+
+    if (!customer.isActive) {
+      return res.status(403).json(errorResponse('Account is suspended'));
+    }
+
+    // Clear the magic link token
+    await db.update(schema.customers)
+      .set({ magicLinkToken: null, magicLinkExpiresAt: null, lastLoginAt: new Date() })
+      .where(eq(schema.customers.id, customer.id));
+
+    const tokens = generateTokens({ userId: customer.id, email: customer.email, isAdmin: customer.isAdmin });
+    setAuthCookies(res, tokens);
+
+    res.json(successResponse({
+      customer: {
+        id: customer.id,
+        uuid: customer.uuid,
+        email: customer.email,
+        firstName: customer.firstName,
+        lastName: customer.lastName,
+        isAdmin: customer.isAdmin,
+      },
+    }, 'Login successful'));
+  }));
+
   // Forgot password
   app.post('/api/v1/auth/forgot-password', rateLimiter({ windowMs: 60000, max: 3 }), asyncHandler(async (req, res) => {
     const { email } = req.body;
@@ -1537,6 +1606,67 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
     res.json({ received: true });
   }));
   
+  // Stripe-specific webhook endpoint (for raw body signature verification)
+  app.post('/api/v1/webhooks/stripe', asyncHandler(async (req, res) => {
+    const sig = req.headers['stripe-signature'] as string;
+    if (!sig) return res.status(400).json(errorResponse('Missing stripe-signature header'));
+
+    const stripeProvider = getPaymentProvider('stripe' as any);
+    if (!stripeProvider.verifyWebhookSignature(JSON.stringify(req.body), sig)) {
+      return res.status(401).json(errorResponse('Invalid Stripe signature'));
+    }
+
+    const event = req.body;
+
+    // Store webhook event
+    await db.insert(schema.webhookEvents).values({
+      source: 'stripe',
+      eventType: event.type,
+      payload: event.data,
+      idempotencyKey: event.id,
+    });
+
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const orderId = parseInt(session.metadata?.orderId);
+        if (orderId) {
+          await orchestrator.handlePaymentSuccess(orderId, {
+            paymentReference: session.payment_intent || session.id,
+            amount: session.amount_total,
+            currency: session.currency,
+          });
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const intent = event.data.object;
+        const orderId = parseInt(intent.metadata?.orderId);
+        if (orderId) {
+          await orchestrator.handlePaymentFailure(orderId, {
+            failure_message: intent.last_payment_error?.message || 'Payment failed',
+          });
+        }
+        break;
+      }
+
+      case 'charge.refunded': {
+        const charge = event.data.object;
+        const orderId = parseInt(charge.metadata?.orderId);
+        if (orderId) {
+          await orchestrator.handlePaymentRefund(orderId, {
+            amount: charge.amount_refunded,
+            refundId: charge.id,
+          });
+        }
+        break;
+      }
+    }
+
+    res.json({ received: true });
+  }));
+
   // ============================================================================
   // DASHBOARD STATS
   // ============================================================================
@@ -4258,6 +4388,141 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
       .where(eq(schema.webhookEvents.id, webhookEvent.id));
 
     res.json({ received: true });
+  }));
+
+  // ============================================================================
+  // WIDGET TOKENS (consoleblue integration)
+  // ============================================================================
+
+  app.post('/api/v1/widget-tokens', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { label, allowedOrigins } = req.body;
+    const token = `wt_${crypto.randomBytes(28).toString('hex')}`;
+
+    const [widgetToken] = await db.insert(schema.widgetTokens).values({
+      customerId: req.user!.userId,
+      token,
+      label: label || 'Default',
+      allowedOrigins: allowedOrigins || [],
+    }).returning();
+
+    res.status(201).json(successResponse(widgetToken));
+  }));
+
+  app.get('/api/v1/widget-tokens', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const tokens = await db.query.widgetTokens.findMany({
+      where: eq(schema.widgetTokens.customerId, req.user!.userId),
+      orderBy: desc(schema.widgetTokens.createdAt),
+    });
+    res.json(successResponse(tokens));
+  }));
+
+  app.delete('/api/v1/widget-tokens/:id', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const id = parseInt(req.params.id);
+    const [token] = await db.select().from(schema.widgetTokens)
+      .where(and(eq(schema.widgetTokens.id, id), eq(schema.widgetTokens.customerId, req.user!.userId)));
+
+    if (!token) return res.status(404).json(errorResponse('Token not found'));
+
+    await db.delete(schema.widgetTokens).where(eq(schema.widgetTokens.id, id));
+    res.json(successResponse(null, 'Token revoked'));
+  }));
+
+  // ============================================================================
+  // COACH GREEN — Unified AI assistant
+  // ============================================================================
+
+  app.post('/api/v1/coach-green/chat', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const { message, context, sessionId } = req.body;
+    if (!message) return res.status(400).json(errorResponse('Message is required'));
+
+    const validContexts = ['editor', 'dashboard', 'widget'];
+    const ctx = validContexts.includes(context) ? context : 'dashboard';
+
+    // Load or create session
+    let session: any;
+    if (sessionId) {
+      session = await db.query.coachGreenSessions.findFirst({
+        where: and(
+          eq(schema.coachGreenSessions.id, sessionId),
+          eq(schema.coachGreenSessions.customerId, req.user!.userId),
+        ),
+      });
+    }
+
+    if (!session) {
+      [session] = await db.insert(schema.coachGreenSessions).values({
+        customerId: req.user!.userId,
+        context: ctx,
+        messages: [],
+      }).returning();
+    }
+
+    const messages: any[] = (session.messages as any[]) || [];
+    messages.push({ role: 'user', content: message, timestamp: new Date().toISOString() });
+
+    // Get customer context for better responses
+    const activeServices = [];
+    const domainCount = await db.select({ count: sql<number>`count(*)` }).from(schema.domains).where(eq(schema.domains.customerId, req.user!.userId));
+    if (Number(domainCount[0]?.count) > 0) activeServices.push('domains');
+    const hostingCount = await db.select({ count: sql<number>`count(*)` }).from(schema.hostingAccounts).where(eq(schema.hostingAccounts.customerId, req.user!.userId));
+    if (Number(hostingCount[0]?.count) > 0) activeServices.push('hosting');
+    const projectCount = await db.select({ count: sql<number>`count(*)` }).from(schema.websiteProjects).where(eq(schema.websiteProjects.customerId, req.user!.userId));
+    if (Number(projectCount[0]?.count) > 0) activeServices.push('website-builder');
+
+    const aiResponse = `Thanks for reaching out! Based on your active services (${activeServices.join(', ') || 'none yet'}), here are some things you might want to do next. How can I help?`;
+
+    messages.push({ role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() });
+
+    await db.update(schema.coachGreenSessions)
+      .set({ messages, updatedAt: new Date() })
+      .where(eq(schema.coachGreenSessions.id, session.id));
+
+    res.json(successResponse({
+      sessionId: session.id,
+      message: aiResponse,
+      context: ctx,
+    }));
+  }));
+
+  app.get('/api/v1/coach-green/suggestions', authenticateToken, requireAuth, asyncHandler(async (req, res) => {
+    const customerId = req.user!.userId;
+
+    // Gather what the customer subscribes to
+    const [domainRows, hostingRows, projectRows, emailRows, sslRows] = await Promise.all([
+      db.select({ count: sql<number>`count(*)` }).from(schema.domains).where(eq(schema.domains.customerId, customerId)),
+      db.select({ count: sql<number>`count(*)` }).from(schema.hostingAccounts).where(eq(schema.hostingAccounts.customerId, customerId)),
+      db.select({ count: sql<number>`count(*)` }).from(schema.websiteProjects).where(eq(schema.websiteProjects.customerId, customerId)),
+      db.select({ count: sql<number>`count(*)` }).from(schema.emailAccounts).where(eq(schema.emailAccounts.customerId, customerId)),
+      db.select({ count: sql<number>`count(*)` }).from(schema.sslCertificates).where(eq(schema.sslCertificates.customerId, customerId)),
+    ]);
+
+    const suggestions: Array<{ title: string; description: string; action: string; priority: string }> = [];
+
+    if (Number(domainRows[0]?.count) === 0) {
+      suggestions.push({ title: 'Register your first domain', description: 'Search and register a domain name for your business.', action: '/domains/search', priority: 'high' });
+    }
+    if (Number(hostingRows[0]?.count) === 0) {
+      suggestions.push({ title: 'Set up hosting', description: 'Launch a WordPress site with managed hosting.', action: '/hosting', priority: 'high' });
+    }
+    if (Number(projectRows[0]?.count) === 0) {
+      suggestions.push({ title: 'Build a website', description: 'Use the website builder to create a site with AI assistance.', action: '/dashboard/website-builder', priority: 'high' });
+    }
+    if (Number(emailRows[0]?.count) === 0 && Number(domainRows[0]?.count) > 0) {
+      suggestions.push({ title: 'Set up professional email', description: 'Create email accounts on your domain.', action: '/dashboard/email', priority: 'medium' });
+    }
+    if (Number(sslRows[0]?.count) === 0 && Number(domainRows[0]?.count) > 0) {
+      suggestions.push({ title: 'Secure your site with SSL', description: 'Install an SSL certificate for HTTPS security.', action: '/dashboard/ssl', priority: 'medium' });
+    }
+    if (Number(projectRows[0]?.count) > 0) {
+      suggestions.push({ title: 'Review your analytics', description: 'Check how visitors interact with your website.', action: '/dashboard/website-builder', priority: 'low' });
+    }
+
+    // Always add these general suggestions
+    if (suggestions.length < 3) {
+      suggestions.push({ title: 'Explore cloud servers', description: 'Deploy a cloud server for custom applications.', action: '/dashboard/servers', priority: 'low' });
+    }
+
+    res.json(successResponse(suggestions));
   }));
 
   // ============================================================================

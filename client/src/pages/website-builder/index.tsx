@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown, Sparkles, MousePointer, Smartphone, Search, ShoppingCart, Code, BarChart3, Building, Camera, Palette, Home, Store, BookOpen } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 
 const plans = [
   {
@@ -127,6 +128,7 @@ export function WebsiteBuilderPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="AI Website Builder" description="Build stunning websites with AI-powered content generation, drag-and-drop editing, 20+ templates, e-commerce, and analytics." />
       {/* Hero */}
       <div className="text-center mb-16">
         <span className="badge badge-ai mb-4 inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium">

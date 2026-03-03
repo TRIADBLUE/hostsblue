@@ -128,6 +128,10 @@ export const customers = pgTable('customers', {
   resetToken: varchar('reset_token', { length: 255 }),
   resetTokenExpiresAt: timestamp('reset_token_expires_at'),
 
+  // Magic link auth
+  magicLinkToken: varchar('magic_link_token', { length: 255 }),
+  magicLinkExpiresAt: timestamp('magic_link_expires_at'),
+
   // Timestamps
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -1582,6 +1586,39 @@ export const emailTemplates = pgTable('email_templates', {
 });
 
 // ============================================================================
+// WIDGET TOKENS (consoleblue integration)
+// ============================================================================
+
+export const widgetTokens = pgTable('widget_tokens', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  token: varchar('token', { length: 64 }).notNull().unique(),
+  label: varchar('label', { length: 255 }),
+  allowedOrigins: jsonb('allowed_origins').default([]),
+  isActive: boolean('is_active').default(true).notNull(),
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  tokenIdx: uniqueIndex('widget_tokens_token_idx').on(table.token),
+  customerIdx: index('widget_tokens_customer_idx').on(table.customerId),
+}));
+
+// ============================================================================
+// COACH GREEN SESSIONS
+// ============================================================================
+
+export const coachGreenSessions = pgTable('coach_green_sessions', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id).notNull(),
+  widgetTokenId: integer('widget_token_id').references(() => widgetTokens.id),
+  context: varchar('context', { length: 50 }).notNull().default('dashboard'),
+  messages: jsonb('messages').default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ============================================================================
 // ZOD SCHEMAS
 // ============================================================================
 
@@ -1775,3 +1812,11 @@ export type NewCustomerNote = typeof customerNotes.$inferInsert;
 // Email template types
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type NewEmailTemplate = typeof emailTemplates.$inferInsert;
+
+// Widget token types
+export type WidgetToken = typeof widgetTokens.$inferSelect;
+export type NewWidgetToken = typeof widgetTokens.$inferInsert;
+
+// Coach Green session types
+export type CoachGreenSession = typeof coachGreenSessions.$inferSelect;
+export type NewCoachGreenSession = typeof coachGreenSessions.$inferInsert;

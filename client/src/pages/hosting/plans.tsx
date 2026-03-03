@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Check, Zap, Shield, Server, ChevronDown } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 import type { CartItem } from '@/hooks/use-cart';
 
 interface CartContext {
@@ -150,6 +151,7 @@ export function HostingPlansPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="Managed WordPress Hosting" description="Lightning-fast WordPress hosting with automatic backups, staging, and expert support. Starting at $9.99/mo." />
       {/* Hero */}
       <div className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">

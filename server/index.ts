@@ -2,13 +2,16 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import ConnectPgSimple from 'connect-pg-simple';
+import compression from 'compression';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { eq } from 'drizzle-orm';
 import * as schema from '../shared/schema.js';
 import { registerRoutes } from './routes.js';
+import { registerWidgetRoutes } from './routes/widget.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +28,21 @@ const pool = new Pool({
 export const db = drizzle(pool, { schema });
 
 const app = express();
+
+// Compression
+app.use(compression());
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  if (NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -51,8 +69,8 @@ app.use(
   })
 );
 
-// CORS configuration
-app.use((req, res, next) => {
+// CORS configuration — includes dynamic widget origins
+app.use(async (req, res, next) => {
   const envOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : [];
@@ -64,15 +82,26 @@ app.use((req, res, next) => {
         'https://www.hostsblue.com',
       ];
   const origin = req.headers.origin;
-  
+
   if (origin && allowedOrigins.includes(origin)) {
     res.header('Access-Control-Allow-Origin', origin);
+  } else if (origin && req.path.startsWith('/api/widget/')) {
+    // For widget routes, dynamically check against widget token origins
+    try {
+      const tokens = await db.query.widgetTokens.findMany({
+        where: eq(schema.widgetTokens.isActive, true),
+      });
+      const widgetOrigins = tokens.flatMap(t => (t.allowedOrigins as string[]) || []);
+      if (widgetOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+      }
+    } catch {}
   }
-  
+
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
   res.header('Access-Control-Allow-Credentials', 'true');
-  
+
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
   } else {
@@ -145,6 +174,7 @@ app.use(async (req, res, next) => {
 
 // Register all API routes
 registerRoutes(app, db);
+registerWidgetRoutes(app, db as any);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { Check, ChevronDown, Mail, ArrowRight } from 'lucide-react';
+import { MetaTags } from '@/components/seo/meta-tags';
 import type { CartItem } from '@/hooks/use-cart';
 
 interface CartContext {
@@ -127,6 +128,7 @@ export function EmailPlansPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
+      <MetaTags title="Professional Email Hosting" description="Professional email on your own domain with spam filtering, large storage, and auto-responders. Starting at $2.99/mo." />
       {/* Hero */}
       <div className="text-center mb-12">
         <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">
