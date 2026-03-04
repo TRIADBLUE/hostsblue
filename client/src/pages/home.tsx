@@ -200,11 +200,11 @@ export function HomePage() {
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <Section>
-            <div className="text-center">
+            <div className="flex flex-col items-center text-center">
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-[800] text-[#09080E] tracking-wide">
                 Domains.&nbsp; Hosting.&nbsp; Email.&nbsp; Security.
               </h1>
-              <p className="text-lg text-[#4B5563] mt-4 mb-8 max-w-[540px] mx-auto leading-relaxed">
+              <p className="text-lg text-[#4B5563] mt-4 mb-8 max-w-[480px] leading-relaxed">
                 Everything your business needs online — registered, hosted, and protected in one place.
               </p>
             </div>
