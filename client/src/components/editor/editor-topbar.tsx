@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Monitor, Tablet, Smartphone, Palette, MessageSquare, Search, Eye, Upload, Save, Loader2, Plus, ChevronDown, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, Monitor, Tablet, Smartphone, Palette, MessageSquare, Search, Eye, Upload, Save, Loader2, Plus, ChevronDown, Check, Sparkles, LogIn } from 'lucide-react';
 import { useEditor } from './editor-context';
 import { websiteBuilderApi } from '@/lib/api';
 import { CreditBalanceBar } from './credit-balance-bar';
 import { PublishModal } from './publish-modal';
+import { SignUpPromptModal } from './signup-prompt-modal';
 
 export function EditorTopBar() {
-  const { state, dispatch, save } = useEditor();
+  const { state, dispatch, save, isGuestMode } = useEditor();
   const navigate = useNavigate();
   const [pageDropdownOpen, setPageDropdownOpen] = useState(false);
   const [showAddPage, setShowAddPage] = useState(false);
   const [newPageTitle, setNewPageTitle] = useState('');
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showSignUpModal, setShowSignUpModal] = useState(false);
 
   const activePage = state.pages.find(p => p.slug === state.activePageSlug);
 
@@ -42,15 +44,22 @@ export function EditorTopBar() {
 
   return (
     <>
+      {isGuestMode && (
+        <div className="h-8 bg-[#064A6C]/5 border-b border-[#064A6C]/10 flex items-center justify-center flex-shrink-0">
+          <span className="text-xs text-[#064A6C] font-medium">
+            Preview Mode — <button onClick={() => setShowSignUpModal(true)} className="underline hover:no-underline">Sign up</button> to save and publish your site
+          </span>
+        </div>
+      )}
       <div className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0">
         {/* Left: Back + Project Name */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/dashboard/website-builder')}
+            onClick={() => navigate(isGuestMode ? '/' : '/dashboard/website-builder')}
             className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 transition-colors text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back
+            {isGuestMode ? 'Back to Home' : 'Back'}
           </button>
           <div className="w-px h-6 bg-gray-200" />
           <span className="font-semibold text-gray-900 text-sm truncate max-w-[200px]">
@@ -130,7 +139,7 @@ export function EditorTopBar() {
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
-          <CreditBalanceBar />
+          {!isGuestMode && <CreditBalanceBar />}
 
           <button
             onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: state.rightPanel === 'seo' ? null : 'seo' })}
@@ -146,13 +155,15 @@ export function EditorTopBar() {
           >
             <Palette className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: state.rightPanel === 'ai-coach' ? null : 'ai-coach' })}
-            className={`p-2 rounded-[7px] transition-colors ${state.rightPanel === 'ai-coach' ? 'bg-[#064A6C]/10 text-[#064A6C]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-            title="Coach Green"
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
+          {!isGuestMode && (
+            <button
+              onClick={() => dispatch({ type: 'SET_RIGHT_PANEL', panel: state.rightPanel === 'ai-coach' ? null : 'ai-coach' })}
+              className={`p-2 rounded-[7px] transition-colors ${state.rightPanel === 'ai-coach' ? 'bg-[#064A6C]/10 text-[#064A6C]' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
+              title="Coach Green"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+          )}
 
           {state.isDirty && (
             <button
@@ -165,26 +176,41 @@ export function EditorTopBar() {
             </button>
           )}
 
-          <button
-            onClick={handlePreview}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-[7px] text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Preview
-          </button>
+          {!isGuestMode && (
+            <button
+              onClick={handlePreview}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 rounded-[7px] text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Preview
+            </button>
+          )}
 
-          <button
-            onClick={() => setShowPublishModal(true)}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-[#064A6C] hover:bg-[#053C58] text-white rounded-[7px] text-sm font-medium transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Publish
-          </button>
+          {isGuestMode ? (
+            <button
+              onClick={() => setShowSignUpModal(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#064A6C] hover:bg-[#053C58] text-white rounded-[7px] text-sm font-medium transition-colors"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign Up to Publish
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowPublishModal(true)}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-[#064A6C] hover:bg-[#053C58] text-white rounded-[7px] text-sm font-medium transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Publish
+            </button>
+          )}
         </div>
       </div>
 
       {showPublishModal && (
         <PublishModal onClose={() => setShowPublishModal(false)} />
+      )}
+      {showSignUpModal && (
+        <SignUpPromptModal onClose={() => setShowSignUpModal(false)} />
       )}
     </>
   );

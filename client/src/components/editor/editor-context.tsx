@@ -4,6 +4,25 @@ import { defaultTheme, generateBlockId, createDefaultBlock } from '../../../../s
 import { websiteBuilderApi } from '@/lib/api';
 
 // ============================================================================
+// GUEST MODE TYPES
+// ============================================================================
+
+export interface GuestProjectData {
+  name: string;
+  businessType: string;
+  theme: WebsiteTheme;
+  pages: {
+    slug: string;
+    title: string;
+    isHomePage: boolean;
+    showInNav: boolean;
+    blocks: WebsiteBlock[];
+  }[];
+}
+
+const GUEST_STORAGE_KEY = 'hostsblue_guest_project';
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -253,6 +272,7 @@ interface EditorContextValue {
   activePage: PageData | undefined;
   activeBlock: WebsiteBlock | undefined;
   save: () => Promise<void>;
+  isGuestMode: boolean;
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);
@@ -271,12 +291,49 @@ const initialState: EditorState = {
   historyIndex: 0,
 };
 
-export function EditorProvider({ children, projectUuid }: { children: ReactNode; projectUuid: string }) {
+interface EditorProviderProps {
+  children: ReactNode;
+  projectUuid?: string;
+  guestMode?: boolean;
+  guestData?: GuestProjectData;
+}
+
+export function EditorProvider({ children, projectUuid, guestMode, guestData }: EditorProviderProps) {
   const [state, dispatch] = useReducer(editorReducer, initialState);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load project data
   useEffect(() => {
+    if (guestMode && guestData) {
+      // Guest mode: load from provided data
+      dispatch({
+        type: 'SET_PROJECT',
+        project: {
+          id: 0,
+          uuid: 'guest',
+          name: guestData.name,
+          slug: guestData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          businessType: guestData.businessType,
+          businessDescription: '',
+          theme: guestData.theme || defaultTheme,
+          status: 'draft',
+          publishedUrl: null,
+        },
+        pages: guestData.pages.map((p, i) => ({
+          id: i,
+          slug: p.slug,
+          title: p.title,
+          sortOrder: i,
+          isHomePage: p.isHomePage,
+          showInNav: p.showInNav,
+          seo: {},
+          blocks: p.blocks || [],
+        })),
+      });
+      return;
+    }
+
+    if (!projectUuid) return;
     websiteBuilderApi.getProject(projectUuid).then((data: any) => {
       dispatch({
         type: 'SET_PROJECT',
@@ -303,13 +360,40 @@ export function EditorProvider({ children, projectUuid }: { children: ReactNode;
         })),
       });
     });
-  }, [projectUuid]);
+  }, [projectUuid, guestMode, guestData]);
 
   const activePage = state.pages.find(p => p.slug === state.activePageSlug);
   const activeBlock = activePage?.blocks.find(b => b.id === state.activeBlockId);
 
   const save = useCallback(async () => {
     if (!state.project || !state.isDirty) return;
+
+    if (guestMode) {
+      // Guest mode: save to localStorage
+      dispatch({ type: 'SET_SAVING', saving: true });
+      try {
+        const guestProject: GuestProjectData = {
+          name: state.project.name,
+          businessType: state.project.businessType,
+          theme: state.theme,
+          pages: state.pages.map(p => ({
+            slug: p.slug,
+            title: p.title,
+            isHomePage: p.isHomePage,
+            showInNav: p.showInNav,
+            blocks: p.blocks,
+          })),
+        };
+        localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestProject));
+        dispatch({ type: 'MARK_CLEAN' });
+      } catch (err) {
+        console.error('Guest save failed:', err);
+      } finally {
+        dispatch({ type: 'SET_SAVING', saving: false });
+      }
+      return;
+    }
+
     dispatch({ type: 'SET_SAVING', saving: true });
 
     try {
@@ -332,7 +416,7 @@ export function EditorProvider({ children, projectUuid }: { children: ReactNode;
     } finally {
       dispatch({ type: 'SET_SAVING', saving: false });
     }
-  }, [state.project, state.pages, state.theme, state.isDirty]);
+  }, [state.project, state.pages, state.theme, state.isDirty, guestMode]);
 
   // Auto-save on 2s debounce
   useEffect(() => {
@@ -365,7 +449,7 @@ export function EditorProvider({ children, projectUuid }: { children: ReactNode;
   }, [state.activeBlockId, save]);
 
   return (
-    <EditorContext.Provider value={{ state, dispatch, activePage, activeBlock, save }}>
+    <EditorContext.Provider value={{ state, dispatch, activePage, activeBlock, save, isGuestMode: !!guestMode }}>
       {children}
     </EditorContext.Provider>
   );

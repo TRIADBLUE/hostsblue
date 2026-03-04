@@ -1,6 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { websiteBuilderApi } from '@/lib/api';
+import { useAuth } from '@/hooks/use-auth';
+import { templates, getTemplateById, type WebsiteTemplate } from '../../../shared/templates/index';
+import { defaultTheme } from '../../../shared/block-types';
 import {
   Check,
   ChevronUp,
@@ -17,6 +20,9 @@ import {
   PenTool,
   MoreHorizontal,
   Monitor,
+  Layout,
+  Wand2,
+  Search,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -115,6 +121,20 @@ const styleColorMap: Record<StyleChoice, { primary: string; secondary: string; a
   Minimal: { primary: '#000000', secondary: '#374151', accent: '#9CA3AF', bg: '#FAFAFA' },
 };
 
+const GUEST_STORAGE_KEY = 'hostsblue_guest_project';
+
+// Map wizard business categories to template categories
+const categoryTemplateMap: Record<string, string[]> = {
+  Restaurant: ['Restaurant'],
+  Retail: ['Retail'],
+  Agency: ['Agency', 'Professional'],
+  Freelancer: ['Freelancer'],
+  Startup: ['Startup'],
+  Nonprofit: ['Nonprofit'],
+  Blog: ['Blog'],
+  Other: [],
+};
+
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
@@ -165,7 +185,9 @@ export function AIBuilder() {
   const [state, setState] = useState<BuilderState>(loadState);
   const [nameTimer, setNameTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Auto-save on every state change
   useEffect(() => {
@@ -220,6 +242,78 @@ export function AIBuilder() {
   const businessLabel = state.businessCategory === 'Other' && state.customBusinessType
     ? state.customBusinessType
     : state.businessCategory ?? 'Not set';
+
+  // Filter templates based on selected business category
+  const filteredTemplates = useMemo(() => {
+    if (!state.businessCategory) return templates.slice(0, 6);
+    const cats = categoryTemplateMap[state.businessCategory] || [];
+    if (cats.length === 0) return templates.slice(0, 6);
+    const matched = templates.filter(t => cats.includes(t.category));
+    // If few matches, pad with other templates
+    if (matched.length < 3) {
+      const rest = templates.filter(t => !cats.includes(t.category)).slice(0, 6 - matched.length);
+      return [...matched, ...rest];
+    }
+    return matched.slice(0, 6);
+  }, [state.businessCategory]);
+
+  const handleGuestLaunch = useCallback(() => {
+    if (!selectedTemplateId) return;
+    const template = getTemplateById(selectedTemplateId);
+    if (!template) return;
+
+    // Apply business name to template
+    const businessName = state.businessName || 'My Website';
+    const styleColors = state.styleChoice ? styleColorMap[state.styleChoice] : null;
+
+    // Build theme: use template theme but override with style colors if chosen
+    const theme = styleColors ? {
+      ...template.theme,
+      primaryColor: styleColors.primary,
+      secondaryColor: styleColors.secondary,
+      accentColor: styleColors.accent || template.theme.accentColor,
+      bgColor: styleColors.bg || template.theme.bgColor,
+    } : template.theme;
+
+    // Filter pages to match wizard selections, always include home
+    const selectedSlugs = state.selectedPages.map(p => p.toLowerCase());
+    const filteredPages = template.pages.filter(p =>
+      p.isHomePage || selectedSlugs.includes(p.slug)
+    );
+    // If template doesn't have enough matching pages, include all
+    const pages = filteredPages.length > 0 ? filteredPages : template.pages;
+
+    // Replace {businessName} placeholders in block data
+    const replacePlaceholders = (obj: any): any => {
+      if (typeof obj === 'string') return obj.replace(/\{businessName\}/g, businessName);
+      if (Array.isArray(obj)) return obj.map(replacePlaceholders);
+      if (obj && typeof obj === 'object') {
+        const result: any = {};
+        for (const [key, val] of Object.entries(obj)) {
+          result[key] = replacePlaceholders(val);
+        }
+        return result;
+      }
+      return obj;
+    };
+
+    const guestProject = {
+      name: businessName,
+      businessType: businessLabel,
+      theme,
+      pages: pages.map(p => ({
+        slug: p.slug,
+        title: p.title,
+        isHomePage: p.isHomePage,
+        showInNav: p.showInNav,
+        blocks: replacePlaceholders(p.blocks),
+      })),
+    };
+
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(guestProject));
+    localStorage.removeItem(STORAGE_KEY);
+    navigate('/try/editor');
+  }, [selectedTemplateId, state.businessName, state.styleChoice, state.selectedPages, businessLabel, navigate]);
 
   /* ----- collapsed bar ----- */
   if (state.collapsed) {
@@ -461,22 +555,100 @@ export function AIBuilder() {
           </div>
         )}
 
-        {/* ---------- STEP 5 — PREVIEW ---------- */}
+        {/* ---------- STEP 5 — PREVIEW / TEMPLATE PICKER ---------- */}
         {state.step === 5 && (
           <div className="animate-fade-in">
-            <h3 className="text-lg font-semibold text-[#09080E] mb-1">
-              Your site is taking shape
-            </h3>
-            <p className="text-sm text-gray-500 mb-5">
-              Here's a preview based on your choices. Open the full editor to customize every detail.
-            </p>
+            {isAuthenticated ? (
+              <>
+                <h3 className="text-lg font-semibold text-[#09080E] mb-1">
+                  Your site is taking shape
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">
+                  Here's a preview based on your choices. Open the full editor to customize every detail.
+                </p>
+                <SitePreview
+                  businessName={state.businessName}
+                  businessType={businessLabel}
+                  style={state.styleChoice ?? 'Professional'}
+                  pages={state.selectedPages}
+                />
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-[#09080E] mb-1">
+                  Pick a template to start editing
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">
+                  Choose a design that fits your vision. You can customize everything in the editor.
+                </p>
 
-            <SitePreview
-              businessName={state.businessName}
-              businessType={businessLabel}
-              style={state.styleChoice ?? 'Professional'}
-              pages={state.selectedPages}
-            />
+                {/* Template Picker Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                  {filteredTemplates.map((t) => {
+                    const selected = selectedTemplateId === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setSelectedTemplateId(t.id)}
+                        className={`text-left rounded-[7px] border overflow-hidden transition-all cursor-pointer ${
+                          selected
+                            ? 'border-[#064A6C] ring-2 ring-[#064A6C]/20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div
+                          className="h-24 flex items-center justify-center"
+                          style={{ backgroundColor: t.theme.primaryColor + '10' }}
+                        >
+                          <div className="text-center">
+                            <div className="w-8 h-8 rounded-full mx-auto mb-1" style={{ backgroundColor: t.theme.primaryColor }} />
+                            <div className="flex gap-1 justify-center">
+                              <div className="w-4 h-1 rounded-full" style={{ backgroundColor: t.theme.secondaryColor }} />
+                              <div className="w-6 h-1 rounded-full" style={{ backgroundColor: t.theme.accentColor || '#94A3B8' }} />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="p-2.5">
+                          <p className="text-sm font-medium text-gray-900 truncate">{t.name}</p>
+                          <p className="text-[11px] text-gray-400">{t.category}</p>
+                        </div>
+                        {selected && (
+                          <div className="px-2.5 pb-2">
+                            <div className="flex items-center gap-1 text-[11px] text-[#064A6C]">
+                              <Check className="w-3 h-3" />
+                              Selected
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* AI Showcase */}
+                <div className="border-t border-gray-100 pt-5">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                    Unlock with a Free Account
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { icon: Wand2, title: 'AI Content', desc: 'Generate pages and copy instantly' },
+                      { icon: Layout, title: 'Smart Layouts', desc: 'AI suggests optimal block arrangements' },
+                      { icon: Search, title: 'SEO Optimization', desc: 'Auto meta tags and search rankings' },
+                    ].map(({ icon: Icon, title, desc }) => (
+                      <div key={title} className="bg-gray-50 rounded-[7px] p-3 text-center">
+                        <Icon className="w-5 h-5 text-[#064A6C] mx-auto mb-1.5" />
+                        <p className="text-xs font-semibold text-gray-900">{title}</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">{desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 text-center mt-2">
+                    Sign up free to unlock AI-powered building
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -517,7 +689,7 @@ export function AIBuilder() {
               Next
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
-          ) : (
+          ) : isAuthenticated ? (
             <button
               onClick={async () => {
                 if (isGenerating) return;
@@ -559,6 +731,15 @@ export function AIBuilder() {
                   Generate & Open Editor
                 </>
               )}
+            </button>
+          ) : (
+            <button
+              onClick={handleGuestLaunch}
+              disabled={!selectedTemplateId}
+              className="flex items-center gap-1.5 px-5 py-2 text-sm font-medium bg-[#064A6C] hover:bg-[#053A55] text-white rounded-[7px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Open Editor
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

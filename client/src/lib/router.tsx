@@ -39,6 +39,8 @@ import { AboutPage } from '@/pages/about/index';
 import { SupportPage as PublicSupportPage } from '@/pages/support/index';
 import { ForgotPasswordPage } from '@/pages/auth/forgot-password';
 import { MagicLinkPage } from '@/pages/auth/magic-link';
+import { GuestEditorPage } from '@/pages/try/editor';
+import { VpsHostingPage } from '@/pages/hosting/vps';
 
 // Panel Pages (Admin)
 import { PanelLoginPage } from '@/pages/panel/login';
@@ -75,10 +77,16 @@ export const router = createBrowserRouter([
       { path: 'pricing', element: <PricingPage /> },
       { path: 'about', element: <AboutPage /> },
       { path: 'support', element: <PublicSupportPage /> },
+      { path: 'hosting/vps', element: <VpsHostingPage /> },
+      { path: 'hosting/cloud', element: <VpsHostingPage /> },
       { path: 'checkout', element: <CheckoutPage /> },
       { path: 'checkout/success', element: <CheckoutSuccessPage /> },
       { path: 'checkout/cancel', element: <CheckoutCancelPage /> },
     ],
+  },
+  {
+    path: '/try/editor',
+    element: <GuestEditorPage />,
   },
   {
     path: '/dashboard',

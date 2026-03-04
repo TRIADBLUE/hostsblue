@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Check, Globe, Server, Mail, Lock, Shield, Palette } from 'lucide-react';
+import { Check, Globe, Server, Mail, Lock, Shield, Palette, Cloud } from 'lucide-react';
 import { MetaTags } from '@/components/seo/meta-tags';
 
 export function PricingPage() {
@@ -75,6 +75,46 @@ export function PricingPage() {
                 { name: 'Growth', price: '$24.99/mo', desc: '5 sites, 50 GB storage', popular: true },
                 { name: 'Business', price: '$49.99/mo', desc: '20 sites, 200 GB storage' },
                 { name: 'Enterprise', price: '$99.99/mo', desc: 'Unlimited sites, 500 GB' },
+              ].map((plan) => (
+                <div key={plan.name} className={`bg-white border rounded-[7px] p-4 ${plan.popular ? 'border-[#064A6C] shadow-sm' : 'border-[#E5E7EB]'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-medium text-gray-900">{plan.name}</h3>
+                    {plan.popular && (
+                      <span className="text-[10px] font-[800] bg-[#FFD700] text-[#09080E] px-2 py-0.5 rounded-[7px]">POPULAR</span>
+                    )}
+                  </div>
+                  <p className="text-lg font-[800] text-gray-900">{plan.price}</p>
+                  <p className="text-xs text-gray-500 mt-1">{plan.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr className="section-divider" />
+
+      {/* Cloud VPS */}
+      <section>
+        <div className="flex flex-col md:flex-row md:items-start gap-8">
+          <div className="md:w-1/3">
+            <div className="w-12 h-12 rounded-[7px] bg-[#064A6C]/10 flex items-center justify-center mb-4">
+              <Cloud className="w-6 h-6 text-[#064A6C]" />
+            </div>
+            <h2 className="text-2xl font-[800] text-gray-900 mb-2">Cloud VPS Hosting</h2>
+            <p className="text-gray-500 mb-3">High-performance virtual servers with full root access, SSD storage, and 10 global datacenters.</p>
+            <p className="text-sm text-[#4B5563] font-medium mb-4">Starting at <span className="text-[#064A6C]">$12/mo</span></p>
+            <Link to="/hosting/vps" className="text-[#064A6C] font-medium text-sm btn-arrow-hover">
+              View VPS Plans
+            </Link>
+          </div>
+          <div className="md:w-2/3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { name: 'Developer', price: '$12/mo', desc: '1 vCPU, 2GB RAM, 20GB SSD' },
+                { name: 'Startup', price: '$29/mo', desc: '2 vCPU, 4GB RAM, 40GB SSD', popular: true },
+                { name: 'Scale', price: '$59/mo', desc: '4 vCPU, 8GB RAM, 80GB SSD' },
+                { name: 'Enterprise', price: '$119/mo', desc: '8 vCPU, 16GB RAM, 200GB SSD' },
               ].map((plan) => (
                 <div key={plan.name} className={`bg-white border rounded-[7px] p-4 ${plan.popular ? 'border-[#064A6C] shadow-sm' : 'border-[#E5E7EB]'}`}>
                   <div className="flex items-center justify-between mb-1">
