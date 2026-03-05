@@ -192,9 +192,9 @@ export function PricingPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {[
                 { name: 'DV SSL', price: 'Free', desc: 'With hosting' },
-                { name: 'OV SSL', price: '$49.99/yr', desc: 'Business validation' },
-                { name: 'EV SSL', price: '$149.99/yr', desc: 'Extended validation' },
-                { name: 'Wildcard', price: '$199.99/yr', desc: 'All subdomains' },
+                { name: 'OV SSL', price: '$139/yr', desc: 'Business validation' },
+                { name: 'EV SSL', price: '$229/yr', desc: 'Extended validation' },
+                { name: 'Wildcard', price: '$179/yr', desc: 'All subdomains' },
               ].map((ssl) => (
                 <div key={ssl.name} className="bg-white border border-[#E5E7EB] rounded-[7px] p-4">
                   <h3 className="font-medium text-gray-900">{ssl.name}</h3>

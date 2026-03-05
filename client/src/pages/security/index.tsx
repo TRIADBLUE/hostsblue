@@ -27,7 +27,7 @@ const sslCerts = [
   },
   {
     type: 'Organization Validated (OV)',
-    price: '$49.99',
+    price: '$139',
     priceNote: '/yr',
     description: 'Business identity verification for companies and organizations that need higher trust.',
     features: [
@@ -36,14 +36,14 @@ const sslCerts = [
       'Company name in certificate',
       'Higher trust level',
       'Issuance in 1-3 days',
-      '1-year validity',
+      '$50K warranty',
     ],
     popular: false,
     isFree: false,
   },
   {
     type: 'Extended Validation (EV)',
-    price: '$149.99',
+    price: '$229',
     priceNote: '/yr',
     description: 'The highest level of trust and validation. Ideal for e-commerce and financial sites.',
     features: [
@@ -59,7 +59,7 @@ const sslCerts = [
   },
   {
     type: 'Wildcard SSL',
-    price: '$199.99',
+    price: '$179',
     priceNote: '/yr',
     description: 'Protect your main domain and all subdomains with a single certificate.',
     features: [

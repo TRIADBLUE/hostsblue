@@ -1436,7 +1436,7 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
         configuration = { planId: emailPlan.id, domain: item.domain, username: item.options?.username || 'admin', storageQuotaMB: (emailPlan.storageGB || 1) * 1024 };
 
       } else if (item.type === 'ssl_certificate') {
-        const sslPrice = item.options?.price || 4999;
+        const sslPrice = item.options?.price || 13900;
         price = sslPrice * item.termYears;
         const productType = item.options?.productType || 'dv';
         description = `SSL Certificate (${productType.toUpperCase()}) - ${item.domain || 'TBD'} (${item.termYears} year${item.termYears > 1 ? 's' : ''})`;

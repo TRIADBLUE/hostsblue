@@ -598,11 +598,12 @@ export class OpenSRSSSLIntegration {
             response_code: '200',
             attributes: {
               products: [
-                { id: 'sectigo-dv', name: 'Sectigo PositiveSSL', type: 'dv', provider: 'sectigo', validation_level: 'dv', max_domains: 1, pricing: { '1': 4999, '2': 8999, '3': 12999 } },
-                { id: 'sectigo-wildcard', name: 'Sectigo Wildcard SSL', type: 'wildcard', provider: 'sectigo', validation_level: 'dv', max_domains: 1, pricing: { '1': 14999, '2': 27999, '3': 39999 } },
-                { id: 'sectigo-ov', name: 'Sectigo InstantSSL', type: 'ov', provider: 'sectigo', validation_level: 'ov', max_domains: 1, pricing: { '1': 9999, '2': 17999, '3': 25999 } },
-                { id: 'sectigo-ev', name: 'Sectigo EV SSL', type: 'ev', provider: 'sectigo', validation_level: 'ev', max_domains: 1, pricing: { '1': 19999, '2': 35999, '3': 49999 } },
-                { id: 'sectigo-san', name: 'Sectigo Multi-Domain SSL', type: 'san', provider: 'sectigo', validation_level: 'dv', max_domains: 100, pricing: { '1': 7999, '2': 14999, '3': 21999 } },
+                // 40% margin over OpenSRS wholesale: DV $11.70, OV $82.70, EV $140, Wildcard $109.70, Multi-Domain $9
+                { id: 'sectigo-dv', name: 'PositiveSSL', type: 'dv', provider: 'sectigo', validation_level: 'dv', max_domains: 1, pricing: { '1': 0, '2': 0, '3': 0 } },
+                { id: 'sectigo-ov', name: 'InstantSSL', type: 'ov', provider: 'sectigo', validation_level: 'ov', max_domains: 1, pricing: { '1': 13900, '2': 24900, '3': 34900 } },
+                { id: 'sectigo-ev', name: 'Comodo EV SSL', type: 'ev', provider: 'sectigo', validation_level: 'ev', max_domains: 1, pricing: { '1': 22900, '2': 40900, '3': 57900 } },
+                { id: 'sectigo-wildcard', name: 'PositiveSSL Wildcard', type: 'wildcard', provider: 'sectigo', validation_level: 'dv', max_domains: 1, pricing: { '1': 17900, '2': 31900, '3': 45900 } },
+                { id: 'sectigo-san', name: 'PositiveSSL Multi-Domain', type: 'san', provider: 'sectigo', validation_level: 'dv', max_domains: 100, pricing: { '1': 1500, '2': 2500, '3': 3900 } },
               ],
             },
           };
