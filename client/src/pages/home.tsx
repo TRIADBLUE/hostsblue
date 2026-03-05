@@ -375,7 +375,7 @@ export function HomePage() {
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <Section>
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-[800] text-[#09080E] mb-4">Why hostsblue</h2>
+            <h2 className="text-3xl font-[800] text-[#09080E] mb-4">Why <Brandsignature brand="hostsblue" showTld={false} size={30} /></h2>
             <p className="text-gray-500 max-w-xl mx-auto">Trusted by businesses worldwide for reliable, secure web services.</p>
           </div>
         </Section>

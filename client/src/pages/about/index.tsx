@@ -9,7 +9,7 @@ export function AboutPage() {
       <MetaTags title="About hostsblue" description="Building the next generation of web infrastructure tools. Domains, hosting, email, and AI-powered website building for businesses of every size." />
       {/* Hero */}
       <div className="text-center mb-16 max-w-3xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">About hostsblue</h1>
+        <h1 className="text-4xl md:text-5xl font-[800] text-gray-900 mb-4">About <Brandsignature brand="hostsblue" showTld={false} size={40} /></h1>
         <p className="text-lg text-[#4B5563]">
           We are building the next generation of web infrastructure tools, making it simple for businesses of every size to establish and grow their online presence.
         </p>
