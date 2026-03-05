@@ -71,33 +71,31 @@ export function Footer() {
         {/* Bottom Bar */}
         <hr className="my-8 border-[#E5E7EB]" style={{ opacity: 0.6 }} />
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Legal Links */}
-          <div className="flex flex-wrap items-center gap-3 text-xs text-[#4B5563]">
-            <a href="#" className="hover:text-[#09080E] transition-colors">Terms of Service</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="#" className="hover:text-[#09080E] transition-colors">Privacy Policy</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="#" className="hover:text-[#09080E] transition-colors">Acceptable Use</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="#" className="hover:text-[#09080E] transition-colors">SLA</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="#" className="hover:text-[#09080E] transition-colors">Domain Registration Agreement</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="https://www.icann.org/resources/pages/benefits-2013-09-16-en" target="_blank" rel="noopener noreferrer" className="hover:text-[#09080E] transition-colors">ICANN Registrant Rights</a>
-            <span className="text-[#E5E7EB]">|</span>
-            <a href="https://www.icann.org/resources/pages/help/dndr/udrp-en" target="_blank" rel="noopener noreferrer" className="hover:text-[#09080E] transition-colors">UDRP Policy</a>
-          </div>
+        {/* Legal Links — full row */}
+        <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-[#4B5563] mb-4">
+          <a href="#" className="hover:text-[#09080E] transition-colors">Terms of Service</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="#" className="hover:text-[#09080E] transition-colors">Privacy Policy</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="#" className="hover:text-[#09080E] transition-colors">Acceptable Use</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="#" className="hover:text-[#09080E] transition-colors">SLA</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="#" className="hover:text-[#09080E] transition-colors">Domain Registration Agreement</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="https://www.icann.org/resources/pages/benefits-2013-09-16-en" target="_blank" rel="noopener noreferrer" className="hover:text-[#09080E] transition-colors">ICANN Registrant Rights</a>
+          <span className="text-[#E5E7EB]">|</span>
+          <a href="https://www.icann.org/resources/pages/help/dndr/udrp-en" target="_blank" rel="noopener noreferrer" className="hover:text-[#09080E] transition-colors">UDRP Policy</a>
+        </div>
 
-          {/* Copyright */}
-          <div className="flex flex-col sm:flex-row items-center gap-2 text-xs text-[#4B5563]">
-            <p className="flex items-center gap-1 flex-wrap">
-              &copy; 2026 <Brandsignature brand="hostsblue" size={12} />
-              . A <Brandsignature brand="triadblue" showTld={false} size={12} /> Company.
-            </p>
-            <span className="hidden sm:inline text-[#E5E7EB]">|</span>
-            <p className="flex items-center gap-1">Secure payments by <Brandsignature brand="swipesblue" size={12} /></p>
-          </div>
+        {/* Copyright — full row */}
+        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#4B5563]">
+          <p className="flex items-center gap-1 flex-wrap">
+            &copy; 2026 <Brandsignature brand="hostsblue" size={12} />
+            . A <Brandsignature brand="triadblue" showTld={false} size={12} /> Company.
+          </p>
+          <span className="text-[#E5E7EB]">|</span>
+          <p>Secure payments by Stripe</p>
         </div>
       </div>
     </footer>

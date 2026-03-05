@@ -45,7 +45,7 @@ export function Header({ cartItemCount = 0, onCartClick }: HeaderProps = {}) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16">
           {/* Logo — left side only */}
-          <Brandsignature brand="hostsblue" showTld={false} size={24} linkTo="/" />
+          <Brandsignature brand="hostsblue" size={24} linkTo="/" />
 
           {/* Desktop Nav + Auth — right-aligned */}
           <nav className="hidden lg:flex items-center gap-1 ml-auto">
