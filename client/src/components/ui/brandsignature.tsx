@@ -102,8 +102,8 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
         aria-hidden="true"
         style={{
           position: 'absolute',
-          top: 1,
-          left: 1,
+          top: 0.5,
+          left: 0.5,
           display: 'inline-flex',
           alignItems: 'center',
           textShadow: '0px 100px 100px rgba(255, 255, 255, 1)',
@@ -111,13 +111,13 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
         }}
       >
         {d.logoPosition === 'left' && (
-          <span style={{ marginRight: size * 0.3, display: 'inline-flex', alignItems: 'center', opacity: 0 }}>
+          <span style={{ marginRight: size * 0.45, display: 'inline-flex', alignItems: 'center', opacity: 0 }}>
             <img src={d.icon} alt="" style={{ height: logoSize, width: 'auto' }} className="inline-block" />
           </span>
         )}
         {renderFirstWord('#09080E')}
         {d.logoPosition === 'middle' && (
-          <span style={{ margin: `0 ${size * 0.15}px`, display: 'inline-flex', alignItems: 'center', opacity: 0 }}>
+          <span style={{ margin: `0 ${size * 0.25}px`, display: 'inline-flex', alignItems: 'center', opacity: 0 }}>
             <img src={d.icon} alt="" style={{ height: logoSize, width: 'auto' }} className="inline-block" />
           </span>
         )}
@@ -135,13 +135,13 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
         }}
       >
         {d.logoPosition === 'left' && (
-          <span style={{ marginRight: size * 0.3, display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ marginRight: size * 0.45, display: 'inline-flex', alignItems: 'center' }}>
             {renderLogo()}
           </span>
         )}
         {renderFirstWord(d.firstColor)}
         {d.logoPosition === 'middle' && (
-          <span style={{ margin: `0 ${size * 0.15}px`, display: 'inline-flex', alignItems: 'center' }}>
+          <span style={{ margin: `0 ${size * 0.25}px`, display: 'inline-flex', alignItems: 'center' }}>
             {renderLogo()}
           </span>
         )}
