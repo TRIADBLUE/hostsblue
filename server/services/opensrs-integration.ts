@@ -700,14 +700,25 @@ export class OpenSRSIntegration {
         const sld = domain.split('.')[0] || '';
         const tld = '.' + (domain.split('.').slice(1).join('.') || 'com');
 
-        // Deterministic availability rules
+        // Deterministic availability rules for realistic mock results
         let available = true;
+        const sldHash = sld.split('').reduce((h: number, c: string) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+        const tldHash = tld.split('').reduce((h: number, c: string) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+        const combined = Math.abs(sldHash ^ tldHash);
+
         if (sld.startsWith('taken')) {
           available = false;
         } else if (sld.startsWith('test')) {
           available = true;
-        } else if (tld === '.com' && COMMON_COM_WORDS.has(sld)) {
-          available = false;
+        } else if (COMMON_COM_WORDS.has(sld)) {
+          // Common words: .com always taken, others ~60% taken
+          available = tld === '.com' ? false : (combined % 5) > 2;
+        } else if (tld === '.com' || tld === '.net' || tld === '.org') {
+          // Popular TLDs: ~40% chance taken for non-common words
+          available = (combined % 5) > 1;
+        } else {
+          // Niche TLDs: ~85% available
+          available = (combined % 7) > 0;
         }
 
         return {

@@ -482,36 +482,74 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   app.get('/api/v1/domains/search', asyncHandler(async (req, res) => {
     const { domain } = domainSearchSchema.parse(req.query);
 
-    // Default TLD pricing fallback
-    const DEFAULT_TLD_PRICING: Record<string, number> = {
+    // Comprehensive TLD catalog with pricing (cents)
+    const TLD_CATALOG: Record<string, number> = {
+      // Popular
       '.com': 1299, '.net': 1499, '.org': 1299, '.io': 3999, '.co': 2999,
+      // Tech
+      '.dev': 1699, '.app': 1699, '.ai': 4999, '.tech': 999, '.cloud': 1299,
+      '.digital': 999, '.code': 2999, '.software': 2999,
+      // Business
+      '.biz': 1499, '.company': 999, '.agency': 999, '.solutions': 999,
+      '.services': 999, '.consulting': 2999, '.group': 1499, '.inc': 2999,
+      '.llc': 2999, '.ventures': 2999, '.enterprises': 2999,
+      // Creative
+      '.design': 2999, '.studio': 1999, '.media': 1999, '.art': 999,
+      '.photography': 1999, '.video': 1999,
+      // Commerce
+      '.shop': 999, '.store': 999, '.market': 2999, '.sale': 999,
+      '.deals': 999, '.buy': 2999,
+      // Web
+      '.site': 999, '.website': 999, '.online': 999, '.web': 999,
+      '.page': 1299, '.blog': 999, '.info': 999,
+      // Location
+      '.us': 999, '.uk': 999, '.ca': 1499, '.eu': 999, '.de': 999,
+      // Other popular
+      '.xyz': 999, '.me': 999, '.tv': 2999, '.cc': 999, '.pro': 999,
+      '.live': 999, '.world': 999, '.space': 999, '.life': 999,
+      '.today': 999, '.zone': 1999, '.one': 999,
     };
-    const SEARCH_TLDS = ['.com', '.net', '.org', '.io', '.co'];
 
-    // Get pricing from DB (or use fallback)
+    // Try DB pricing first, fall back to catalog
     let tldPricing: Record<string, number> = {};
     try {
-      const tlds = await db.query.tldPricing.findMany({
-        where: and(
-          eq(schema.tldPricing.isActive, true),
-          inArray(schema.tldPricing.tld, SEARCH_TLDS)
-        ),
+      const allTlds = Object.keys(TLD_CATALOG);
+      const dbTlds = await db.query.tldPricing.findMany({
+        where: eq(schema.tldPricing.isActive, true),
       });
-      if (tlds.length > 0) {
-        tlds.forEach(t => { tldPricing[t.tld] = t.registrationPrice; });
+      if (dbTlds.length > 0) {
+        dbTlds.forEach(t => { tldPricing[t.tld] = t.registrationPrice; });
+        // Fill gaps from catalog
+        allTlds.forEach(tld => { if (!tldPricing[tld]) tldPricing[tld] = TLD_CATALOG[tld]; });
       } else {
-        tldPricing = DEFAULT_TLD_PRICING;
+        tldPricing = { ...TLD_CATALOG };
       }
     } catch {
-      tldPricing = DEFAULT_TLD_PRICING;
+      tldPricing = { ...TLD_CATALOG };
     }
 
-    // Check availability with OpenSRS
+    // Check availability with OpenSRS for all TLDs
     const results = await openSRS.checkAvailability(domain, Object.keys(tldPricing));
+
+    // Sort: exact match first, then available (cheapest first), then unavailable
+    const searchedTld = '.' + (domain.split('.').slice(1).join('.') || 'com');
+    const sorted = results.sort((a: any, b: any) => {
+      // Exact searched TLD always first
+      if (a.tld === searchedTld && b.tld !== searchedTld) return -1;
+      if (b.tld === searchedTld && a.tld !== searchedTld) return 1;
+      // Available before unavailable
+      if (a.available && !b.available) return -1;
+      if (!a.available && b.available) return 1;
+      // Cheaper first among available
+      if (a.available && b.available) {
+        return (tldPricing[a.tld] || 9999) - (tldPricing[b.tld] || 9999);
+      }
+      return 0;
+    });
 
     res.json(successResponse({
       query: domain,
-      results: results.map((r: any) => ({
+      results: sorted.map((r: any) => ({
         domain: r.domain,
         available: r.available,
         price: r.available ? (tldPricing[r.tld] || null) : null,

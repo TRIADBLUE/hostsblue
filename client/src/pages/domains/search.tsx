@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { domainApi } from '@/lib/api';
-import { Search, Loader2, Check, X, Globe, ShoppingCart, Shield, ArrowRight, CheckCircle, Lock } from 'lucide-react';
+import { Search, Loader2, Check, X, Globe, ShoppingCart, Shield, ArrowRight, CheckCircle, Lock, ChevronDown } from 'lucide-react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { MetaTags } from '@/components/seo/meta-tags';
 import type { CartItem } from '@/hooks/use-cart';
@@ -14,17 +14,21 @@ interface CartContext {
   openCart: () => void;
 }
 
+const INITIAL_SHOW = 20;
+
 export function DomainSearchPage() {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || searchParams.get('domain') || '';
   const [query, setQuery] = useState(initialQuery);
   const [searchTerm, setSearchTerm] = useState(initialQuery);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     const q = searchParams.get('q') || searchParams.get('domain') || '';
     if (q && q !== searchTerm) {
       setQuery(q);
       setSearchTerm(q);
+      setShowAll(false);
     }
   }, [searchParams]);
   const cart = useOutletContext<CartContext>();
@@ -44,6 +48,7 @@ export function DomainSearchPage() {
     e.preventDefault();
     const cleanQuery = query.toLowerCase().replace(/[^a-z0-9.-]/g, '');
     setSearchTerm(cleanQuery);
+    setShowAll(false);
   };
 
   const isInCart = (domain: string, tld: string) =>
@@ -64,6 +69,15 @@ export function DomainSearchPage() {
       configuration: { domain: sld, tld, sld },
     });
   };
+
+  // Split results into primary (first result) and alternatives
+  const allResults = searchResults?.results || [];
+  const primaryResult = allResults[0];
+  const alternatives = allResults.slice(1);
+  const availableAlts = alternatives.filter((r: any) => r.available);
+  const unavailableAlts = alternatives.filter((r: any) => !r.available);
+  const visibleAvailable = showAll ? availableAlts : availableAlts.slice(0, INITIAL_SHOW);
+  const hiddenCount = availableAlts.length - visibleAvailable.length;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-12">
@@ -104,57 +118,102 @@ export function DomainSearchPage() {
       </form>
 
       {/* Results */}
-      {searchResults?.results && (
-        <div className="max-w-3xl mx-auto mb-12">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-4">
+      {allResults.length > 0 && (
+        <div className="max-w-4xl mx-auto mb-12">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
               <h2 className="text-lg font-semibold text-gray-900">
                 Results for "{searchResults.query}"
               </h2>
-              {cart.itemCount > 0 && (
-                <button
-                  onClick={cart.openCart}
-                  className="flex items-center gap-2 text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors"
-                >
-                  <ShoppingCart className="w-4 h-4" />
-                  View Cart ({cart.itemCount})
-                </button>
-              )}
+              <p className="text-sm text-gray-500 mt-1">
+                {availableAlts.length + (primaryResult?.available ? 1 : 0)} available of {allResults.length} checked
+              </p>
             </div>
-            {searchResults.results.map((result: any) => {
-              const inCart = isInCart(result.domain, result.tld);
-              return (
-                <div
-                  key={result.domain}
-                  className="bg-white border border-gray-200 rounded-[7px] p-4 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      result.available ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      {result.available ? (
-                        <Check className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <X className="w-5 h-5 text-red-500" />
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-gray-900 font-medium">{result.domain}</h3>
-                      <p className="text-sm text-gray-500">
-                        {result.available ? 'Available' : 'Not available'}
-                      </p>
-                    </div>
+            {cart.itemCount > 0 && (
+              <button
+                onClick={cart.openCart}
+                className="flex items-center gap-2 text-sm font-medium text-[#064A6C] hover:text-[#053A55] transition-colors"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                View Cart ({cart.itemCount})
+              </button>
+            )}
+          </div>
+
+          {/* Primary Result — large card */}
+          {primaryResult && (
+            <div className={`border-2 rounded-[7px] p-6 mb-6 ${
+              primaryResult.available
+                ? 'border-green-300 bg-green-50/50'
+                : 'border-red-200 bg-red-50/30'
+            }`}>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                    primaryResult.available ? 'bg-green-100' : 'bg-red-100'
+                  }`}>
+                    {primaryResult.available ? (
+                      <Check className="w-6 h-6 text-green-600" />
+                    ) : (
+                      <X className="w-6 h-6 text-red-500" />
+                    )}
                   </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{primaryResult.domain}</h3>
+                    <p className={`text-sm font-medium ${primaryResult.available ? 'text-green-600' : 'text-red-500'}`}>
+                      {primaryResult.available ? 'Available!' : 'Already taken'}
+                    </p>
+                  </div>
+                </div>
+                {primaryResult.available && (
                   <div className="flex items-center gap-4">
-                    {result.available && (
-                      <>
-                        <span className="text-gray-900 font-semibold">
+                    <span className="text-2xl font-bold text-gray-900">
+                      ${(primaryResult.price / 100).toFixed(2)}<span className="text-sm font-normal text-gray-500">/yr</span>
+                    </span>
+                    <button
+                      onClick={() => addDomainToCart(primaryResult.domain, primaryResult.tld, primaryResult.price)}
+                      disabled={isInCart(primaryResult.domain, primaryResult.tld)}
+                      className={`px-6 py-3 rounded-[7px] font-medium transition-colors ${
+                        isInCart(primaryResult.domain, primaryResult.tld)
+                          ? 'bg-green-100 text-green-700 cursor-default'
+                          : 'bg-[#064A6C] hover:bg-[#053A55] text-white'
+                      }`}
+                    >
+                      {isInCart(primaryResult.domain, primaryResult.tld) ? 'In Cart' : 'Add to Cart'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Available Alternatives — compact rows */}
+          {visibleAvailable.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                Available Alternatives
+              </h3>
+              <div className="border border-gray-200 rounded-[7px] divide-y divide-gray-100 bg-white">
+                {visibleAvailable.map((result: any) => {
+                  const inCart = isInCart(result.domain, result.tld);
+                  return (
+                    <div
+                      key={result.domain}
+                      className="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        <span className="text-gray-900 font-medium">{result.domain}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-900 font-semibold text-sm">
                           ${(result.price / 100).toFixed(2)}/yr
                         </span>
                         <button
                           onClick={() => addDomainToCart(result.domain, result.tld, result.price)}
                           disabled={inCart}
-                          className={`px-4 py-2 rounded-[7px] text-sm font-medium transition-colors ${
+                          className={`px-3 py-1.5 rounded-[7px] text-xs font-medium transition-colors ${
                             inCart
                               ? 'bg-green-50 text-green-600 cursor-default'
                               : 'bg-[#064A6C] hover:bg-[#053A55] text-white'
@@ -162,13 +221,41 @@ export function DomainSearchPage() {
                         >
                           {inCart ? 'In Cart' : 'Add to Cart'}
                         </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {hiddenCount > 0 && (
+                <button
+                  onClick={() => setShowAll(true)}
+                  className="mt-3 w-full py-2.5 text-sm font-medium text-[#064A6C] hover:text-[#053A55] bg-gray-50 hover:bg-gray-100 rounded-[7px] transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  Show {hiddenCount} more available domains
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Taken — collapsed summary */}
+          {unavailableAlts.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                Not Available ({unavailableAlts.length})
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {unavailableAlts.map((result: any) => (
+                  <span
+                    key={result.domain}
+                    className="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-[7px]"
+                  >
+                    {result.domain}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -185,8 +272,9 @@ export function DomainSearchPage() {
 
       {/* TLD Pricing Table */}
       <section className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">Domain Pricing</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Domain Pricing</h2>
+        <p className="text-gray-500 mb-8">Competitive pricing across 60+ extensions</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
           {[
             { tld: '.com', price: '$12.99/yr' },
             { tld: '.net', price: '$14.99/yr' },
@@ -196,13 +284,25 @@ export function DomainSearchPage() {
             { tld: '.dev', price: '$16.99/yr' },
             { tld: '.app', price: '$16.99/yr' },
             { tld: '.ai', price: '$49.99/yr' },
+            { tld: '.tech', price: '$9.99/yr' },
+            { tld: '.cloud', price: '$12.99/yr' },
+            { tld: '.shop', price: '$9.99/yr' },
+            { tld: '.store', price: '$9.99/yr' },
+            { tld: '.online', price: '$9.99/yr' },
+            { tld: '.site', price: '$9.99/yr' },
+            { tld: '.xyz', price: '$9.99/yr' },
+            { tld: '.me', price: '$9.99/yr' },
+            { tld: '.design', price: '$29.99/yr' },
+            { tld: '.agency', price: '$9.99/yr' },
+            { tld: '.studio', price: '$19.99/yr' },
+            { tld: '.pro', price: '$9.99/yr' },
           ].map((item) => (
             <div
               key={item.tld}
-              className="bg-white border border-gray-200 rounded-[7px] p-4"
+              className="bg-white border border-gray-200 rounded-[7px] p-3"
             >
-              <p className="text-lg font-bold text-gray-900">{item.tld}</p>
-              <p className="text-sm text-gray-500 mt-1">{item.price}</p>
+              <p className="text-base font-bold text-gray-900">{item.tld}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{item.price}</p>
             </div>
           ))}
         </div>
