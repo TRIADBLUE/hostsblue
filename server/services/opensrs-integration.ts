@@ -412,29 +412,47 @@ export class OpenSRSIntegration {
     // If no TLDs provided, default to .com
     const searchTlds = tlds.length > 0 ? tlds : ['.com'];
 
-    // XCP LOOKUP is per-domain — run in parallel
-    const lookups = searchTlds.map(async (tld): Promise<DomainAvailabilityResult> => {
-      const fullDomain = `${cleanDomain}${tld}`;
-      try {
-        const response = await this.apiRequest('LOOKUP', 'DOMAIN', { domain: fullDomain });
-        // 210 = available, 211 = taken (both return is_success=1)
-        return {
-          domain: fullDomain,
-          tld,
-          available: response.response_code === '210',
-        };
-      } catch {
-        // API failed — fall back to mock so results aren't all "unavailable"
-        const mockResult = this.mockResponse('LOOKUP', 'DOMAIN', { domain: fullDomain });
-        return {
-          domain: fullDomain,
-          tld,
-          available: mockResult.response_code === '210',
-        };
-      }
-    });
+    // Batch lookups to avoid overwhelming the API (10 at a time)
+    const BATCH_SIZE = 10;
+    const results: DomainAvailabilityResult[] = [];
+    let apiFailed = false;
 
-    return Promise.all(lookups);
+    for (let i = 0; i < searchTlds.length; i += BATCH_SIZE) {
+      const batch = searchTlds.slice(i, i + BATCH_SIZE);
+
+      // If the API already failed on a previous batch, skip to mock
+      if (apiFailed) {
+        for (const tld of batch) {
+          const fullDomain = `${cleanDomain}${tld}`;
+          const mockResult = this.mockResponse('LOOKUP', 'DOMAIN', { domain: fullDomain });
+          results.push({ domain: fullDomain, tld, available: mockResult.response_code === '210' });
+        }
+        continue;
+      }
+
+      const batchResults = await Promise.all(
+        batch.map(async (tld): Promise<DomainAvailabilityResult> => {
+          const fullDomain = `${cleanDomain}${tld}`;
+          try {
+            const response = await this.apiRequest('LOOKUP', 'DOMAIN', { domain: fullDomain });
+            return {
+              domain: fullDomain,
+              tld,
+              available: response.response_code === '210',
+            };
+          } catch (error) {
+            console.error(`[OpenSRS] LOOKUP failed for ${fullDomain}:`, (error as Error).message);
+            apiFailed = true;
+            // Fall back to mock for this domain
+            const mockResult = this.mockResponse('LOOKUP', 'DOMAIN', { domain: fullDomain });
+            return { domain: fullDomain, tld, available: mockResult.response_code === '210' };
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
+
+    return results;
   }
 
   /**
