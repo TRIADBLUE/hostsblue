@@ -52,11 +52,11 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* TRIADBLUE Ecosystem */}
+          {/* TRIADBLUE.COM Ecosystem */}
           <div>
             <h3 className="text-sm mb-4 flex items-center gap-1.5">
-              <Brandsignature brand="triadblue" showTld={false} size={14} />
-              <span className="text-[#09080E] font-semibold"> Ecosystem</span>
+              <Brandsignature brand="triadblue" size={14} />
+              <span className="text-[#09080E] font-semibold">Ecosystem</span>
             </h3>
             <ul className="space-y-3">
               <li><Brandsignature brand="hostsblue" size={14} /></li>
@@ -92,7 +92,7 @@ export function Footer() {
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#4B5563]">
           <p className="flex items-center gap-1 flex-wrap">
             &copy; 2026 <Brandsignature brand="hostsblue" size={12} />
-            . A <Brandsignature brand="triadblue" showTld={false} size={12} /> Company.
+            . A <Brandsignature brand="triadblue" size={12} /> Company.
           </p>
           <span className="text-[#E5E7EB]">|</span>
           <p>Secure payments by Stripe</p>
