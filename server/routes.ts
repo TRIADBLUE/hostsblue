@@ -482,38 +482,43 @@ export function registerRoutes(app: Express, db: PostgresJsDatabase<typeof schem
   app.get('/api/v1/domains/search', asyncHandler(async (req, res) => {
     const { domain } = domainSearchSchema.parse(req.query);
 
-    // Comprehensive TLD catalog with pricing (cents) — realistic market rates
+    // TLD catalog — 30% margin over OpenSRS wholesale (prices in cents)
+    // Formula: Math.round(wholesale_usd / 0.7 * 100)
     const TLD_CATALOG: Record<string, number> = {
-      // Popular (tier 1)
-      '.com': 1299, '.net': 1399, '.org': 1299, '.io': 3999, '.co': 2999,
+      // Popular
+      '.com': 2071, '.net': 2357, '.org': 1427, '.io': 4857, '.co': 5000,
       // Tech
-      '.dev': 1699, '.app': 1799, '.ai': 4999, '.tech': 1299, '.cloud': 2199,
-      '.digital': 1499, '.code': 3499, '.software': 3299,
+      '.dev': 2429, '.app': 3000, '.ai': 31714, '.tech': 8429, '.cloud': 3857,
+      '.digital': 6143, '.software': 6143,
       // Business
-      '.biz': 1799, '.company': 1299, '.agency': 2499, '.solutions': 2299,
-      '.services': 2299, '.consulting': 3499, '.group': 1999, '.inc': 3999,
-      '.llc': 3499, '.ventures': 3299, '.enterprises': 3299,
+      '.biz': 3000, '.company': 3000, '.agency': 4429, '.solutions': 5000,
+      '.services': 5857, '.consulting': 7571, '.group': 3857,
+      '.llc': 6286, '.ventures': 8571, '.enterprises': 5429,
       // Creative
-      '.design': 3499, '.studio': 2799, '.media': 2499, '.art': 1499,
-      '.photography': 2699, '.video': 2499,
+      '.design': 8429, '.studio': 6000, '.media': 6571, '.art': 4429,
+      '.photography': 5571, '.video': 5571,
       // Commerce
-      '.shop': 1499, '.store': 1699, '.market': 3299, '.sale': 1999,
-      '.deals': 1799, '.buy': 3499,
+      '.shop': 5714, '.store': 7429, '.market': 6429, '.sale': 5857,
+      '.deals': 6143,
       // Web
-      '.site': 1299, '.website': 1499, '.online': 1599, '.web': 1299,
-      '.page': 1399, '.blog': 1499, '.info': 1199,
+      '.site': 4714, '.website': 3571, '.online': 4714,
+      '.page': 2143, '.blog': 4429, '.info': 3857,
       // Location
-      '.us': 1199, '.uk': 1099, '.ca': 1599, '.eu': 1299, '.de': 1199,
+      '.us': 1571, '.uk': 1250, '.ca': 2286, '.eu': 1429, '.de': 1250,
       // Other popular
-      '.xyz': 1299, '.me': 1199, '.tv': 3499, '.cc': 1299, '.pro': 1299,
-      '.live': 1699, '.world': 1999, '.space': 1299, '.life': 1799,
-      '.today': 1499, '.zone': 2199, '.one': 1199,
+      '.xyz': 2429, '.me': 3286, '.tv': 6286, '.cc': 2571, '.pro': 4000,
+      '.live': 5143, '.world': 6143, '.space': 4286, '.life': 5571,
+      '.today': 4143, '.zone': 5857, '.one': 3714,
+      // Additional
+      '.club': 2857, '.email': 4429, '.network': 5571, '.team': 5571,
+      '.link': 1857, '.click': 2143, '.news': 5143, '.city': 4143,
+      '.fun': 5000, '.business': 2857, '.social': 6143, '.ninja': 5000,
     };
 
     // Priority order: popular TLDs shown first regardless of price
     const TLD_PRIORITY: string[] = [
       '.com', '.net', '.org', '.io', '.co', '.dev', '.app', '.ai',
-      '.tech', '.cloud', '.me', '.xyz', '.pro', '.info', '.biz',
+      '.tech', '.cloud', '.me', '.xyz', '.pro', '.us', '.uk', '.info', '.biz',
     ];
 
     // Try DB pricing first, fall back to catalog
