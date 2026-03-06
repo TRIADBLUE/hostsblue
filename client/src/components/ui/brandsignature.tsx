@@ -60,8 +60,6 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
   const isTriadblue = brand === 'triadblue';
   const firstFont = "'Archivo Semi Expanded', sans-serif";
   const secondFont = "'Archivo Narrow', sans-serif";
-  const logoShadow = 'drop-shadow(0.5px 0.5px 0px #09080E) drop-shadow(0px 0px 100px rgba(255, 255, 255, 1))';
-
   const renderFirstWord = (color: string) => {
     if (isTriadblue) {
       return (
@@ -89,16 +87,22 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
     return <span style={{ fontFamily: secondFont, fontWeight: 800, color, fontSize: size }}>{d.tld}</span>;
   };
 
-  const renderLogo = () => (
+  const renderLogo = (layer: 'front' | 'back') => (
     <img
       src={d.icon}
       alt=""
-      style={{ height: logoSize, width: 'auto', filter: logoShadow }}
+      style={{
+        height: logoSize,
+        width: 'auto',
+        filter: layer === 'front'
+          ? 'drop-shadow(0px -100px 100px rgba(255, 255, 255, 1))'
+          : 'brightness(0)',
+      }}
       className="inline-block"
     />
   );
 
-  const renderLogoBox = (visible: boolean) => (
+  const renderLogoBox = (layer: 'front' | 'back') => (
     <span style={{
       width: logoBoxWidth,
       marginRight: logoGap,
@@ -106,24 +110,18 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,
-      opacity: visible ? 1 : 0,
     }}>
-      {visible ? renderLogo() : (
-        <img src={d.icon} alt="" style={{ height: logoSize, width: 'auto' }} className="inline-block" />
-      )}
+      {renderLogo(layer)}
     </span>
   );
 
-  const renderMiddleLogo = (visible: boolean) => (
+  const renderMiddleLogo = (layer: 'front' | 'back') => (
     <span style={{
       margin: `0 ${middleGap}px`,
       display: 'inline-flex',
       alignItems: 'center',
-      opacity: visible ? 1 : 0,
     }}>
-      {visible ? renderLogo() : (
-        <img src={d.icon} alt="" style={{ height: logoSize, width: 'auto' }} className="inline-block" />
-      )}
+      {renderLogo(layer)}
     </span>
   );
 
@@ -142,9 +140,9 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
           pointerEvents: 'none',
         }}
       >
-        {d.logoPosition === 'left' && renderLogoBox(false)}
+        {d.logoPosition === 'left' && renderLogoBox('back')}
         {renderFirstWord('#09080E')}
-        {d.logoPosition === 'middle' && renderMiddleLogo(false)}
+        {d.logoPosition === 'middle' && renderMiddleLogo('back')}
         {renderSecondWord('#09080E')}
         {renderTld('#09080E')}
       </span>
@@ -158,9 +156,9 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
           textShadow: '0px -100px 100px rgba(255, 255, 255, 1)',
         }}
       >
-        {d.logoPosition === 'left' && renderLogoBox(true)}
+        {d.logoPosition === 'left' && renderLogoBox('front')}
         {renderFirstWord(d.firstColor)}
-        {d.logoPosition === 'middle' && renderMiddleLogo(true)}
+        {d.logoPosition === 'middle' && renderMiddleLogo('front')}
         {renderSecondWord(d.secondColor)}
         {renderTld(d.tldColor)}
       </span>

@@ -54,7 +54,7 @@ export function Footer() {
 
           {/* TRIADBLUE.COM Ecosystem */}
           <div>
-            <h3 className="text-sm mb-4 flex items-center gap-1.5">
+            <h3 className="text-sm mb-4 flex items-baseline gap-1.5">
               <Brandsignature brand="triadblue" size={14} />
               <span className="text-[#09080E] font-semibold">Ecosystem</span>
             </h3>
@@ -89,8 +89,8 @@ export function Footer() {
         </div>
 
         {/* Copyright — full row */}
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#4B5563]">
-          <p className="flex items-center gap-1 flex-wrap">
+        <div className="flex flex-wrap items-baseline justify-center gap-2 text-xs text-[#4B5563]">
+          <p className="flex items-baseline gap-1 flex-wrap">
             &copy; 2026 <Brandsignature brand="hostsblue" size={12} />
             . A <Brandsignature brand="triadblue" size={12} /> Company.
           </p>
