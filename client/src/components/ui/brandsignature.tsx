@@ -60,7 +60,7 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
   const isTriadblue = brand === 'triadblue';
   const firstFont = "'Archivo Semi Expanded', sans-serif";
   const secondFont = "'Archivo Narrow', sans-serif";
-  const whiteGlow = 'drop-shadow(0px 0px 100px rgba(255, 255, 255, 1))';
+  const logoShadow = 'drop-shadow(0.5px 0.5px 0px #09080E) drop-shadow(0px 0px 100px rgba(255, 255, 255, 1))';
 
   const renderFirstWord = (color: string) => {
     if (isTriadblue) {
@@ -93,7 +93,7 @@ function BrandText({ brand, showTld, size }: { brand: keyof typeof brandData; sh
     <img
       src={d.icon}
       alt=""
-      style={{ height: logoSize, width: 'auto', filter: whiteGlow }}
+      style={{ height: logoSize, width: 'auto', filter: logoShadow }}
       className="inline-block"
     />
   );

@@ -44,7 +44,7 @@ export function Footer() {
           <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
             <h3 className="text-[#09080E] font-semibold text-sm mb-4">Company</h3>
             <ul className="space-y-2.5 text-sm">
-              <li><Link to="/about" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">About hostsblue</Link></li>
+              <li><Link to="/about" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">About</Link></li>
               <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Careers</a></li>
               <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Press</a></li>
               <li><a href="mailto:support@hostsblue.com" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Contact</a></li>
