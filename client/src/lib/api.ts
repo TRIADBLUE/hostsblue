@@ -95,6 +95,17 @@ export const domainApi = {
     fetchApi<void>(`/domains/${uuid}/dns/${recordId}`, { method: 'DELETE' }),
   syncDns: (uuid: string) =>
     fetchApi<any>(`/domains/${uuid}/dns/sync`, { method: 'POST' }),
+  // Transfer
+  initiateTransfer: (domain: string, authCode: string) =>
+    fetchApi<any>('/domains/transfer/initiate', { method: 'POST', body: JSON.stringify({ domain, authCode }) }),
+  getTransferStatus: (domain: string) =>
+    fetchApi<any>(`/domains/transfer/status/${encodeURIComponent(domain)}`),
+  resendTransferApproval: (domain: string) =>
+    fetchApi<any>(`/domains/transfer/resend-approval/${encodeURIComponent(domain)}`, { method: 'POST' }),
+  cancelTransfer: (domain: string) =>
+    fetchApi<any>(`/domains/transfer/cancel/${encodeURIComponent(domain)}`, { method: 'POST' }),
+  getActiveTransfers: () =>
+    fetchApi<any[]>('/domains/transfers'),
 };
 
 export const hostingApi = {

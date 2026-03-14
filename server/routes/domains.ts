@@ -1,8 +1,10 @@
 import { Express } from 'express';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, or } from 'drizzle-orm';
 import * as schema from '../../shared/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler, successResponse, errorResponse, domainSearchSchema, type RouteContext } from './shared.js';
+
+const DOMAIN_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/;
 
 export function registerDomainRoutes(app: Express, ctx: RouteContext) {
   const { db, openSRS } = ctx;
@@ -287,6 +289,226 @@ export function registerDomainRoutes(app: Express, ctx: RouteContext) {
     }
 
     res.json(successResponse(null, 'DNS record deleted'));
+  }));
+
+  // ===========================================================================
+  // DOMAIN TRANSFER
+  // ===========================================================================
+
+  // Initiate domain transfer
+  app.post('/api/v1/domains/transfer/initiate', requireAuth, asyncHandler(async (req, res) => {
+    const { domain, authCode } = req.body;
+
+    if (!domain || !DOMAIN_REGEX.test(domain)) {
+      return res.status(400).json(errorResponse('Please enter a valid domain name (e.g. example.com).'));
+    }
+    if (!authCode || authCode.trim().length < 3) {
+      return res.status(400).json(errorResponse('Please enter a valid authorization/EPP code.'));
+    }
+
+    const domainLower = domain.toLowerCase();
+    const parts = domainLower.split('.');
+    const tld = '.' + parts.slice(1).join('.');
+
+    // Check if domain already exists for this user
+    const existing = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.domainName, domainLower),
+        eq(schema.domains.customerId, req.user!.userId),
+        sql`${schema.domains.deletedAt} IS NULL`,
+      ),
+    });
+    if (existing) {
+      return res.status(400).json(errorResponse('This domain is already in your account.'));
+    }
+
+    // Get customer info for contacts
+    const customer = await db.query.customers.findFirst({
+      where: eq(schema.customers.id, req.user!.userId),
+    });
+    if (!customer) {
+      return res.status(404).json(errorResponse('Account not found.'));
+    }
+
+    // Build contact from customer info
+    const contact = {
+      firstName: customer.firstName || 'Domain',
+      lastName: customer.lastName || 'Owner',
+      email: customer.email,
+      phone: customer.phone || '+1.0000000000',
+      address1: customer.address1 || '123 Main St',
+      city: customer.city || 'New York',
+      state: customer.state || 'NY',
+      postalCode: customer.postalCode || '10001',
+      country: customer.countryCode || 'US',
+    };
+
+    try {
+      const result = await openSRS.transferDomain(domainLower, authCode.trim(), { owner: contact });
+
+      // Create domain record in pending_transfer status
+      const [newDomain] = await db.insert(schema.domains).values({
+        customerId: req.user!.userId,
+        domainName: domainLower,
+        tld,
+        status: 'pending_transfer',
+        isTransfer: true,
+        transferAuthCode: authCode.trim(),
+        transferStatus: result.status || 'initiated',
+        registrationDate: new Date(),
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        autoRenew: true,
+        privacyEnabled: false,
+        nameservers: [],
+      }).returning();
+
+      res.status(201).json(successResponse({
+        domain: domainLower,
+        transferId: result.transferId,
+        status: 'initiated',
+        uuid: newDomain.uuid,
+      }, 'Transfer initiated. You will receive an approval email from the current registrar.'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Transfer initiation failed';
+      console.error(`[Transfer] Failed to initiate transfer for ${domainLower}:`, message);
+      return res.status(400).json(errorResponse('Unable to initiate the transfer. Please verify the domain name and authorization code are correct.'));
+    }
+  }));
+
+  // Get transfer status
+  app.get('/api/v1/domains/transfer/status/:domain', requireAuth, asyncHandler(async (req, res) => {
+    const domainName = req.params.domain.toLowerCase();
+
+    // Verify ownership
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.domainName, domainName),
+        eq(schema.domains.customerId, req.user!.userId),
+        eq(schema.domains.isTransfer, true),
+      ),
+    });
+    if (!domain) {
+      return res.status(404).json(errorResponse('Transfer not found.'));
+    }
+
+    try {
+      const status = await openSRS.checkTransfer(domainName);
+
+      // Update local transfer status
+      await db.update(schema.domains)
+        .set({ transferStatus: status.stage, updatedAt: new Date() })
+        .where(eq(schema.domains.id, domain.id));
+
+      res.json(successResponse({
+        domain: domainName,
+        status: status.status,
+        stage: status.stage,
+        transferId: status.transferId,
+        lastUpdated: status.lastUpdated,
+        initiatedAt: domain.createdAt,
+      }));
+    } catch (err: unknown) {
+      // Return last known status from DB if OpenSRS is unreachable
+      res.json(successResponse({
+        domain: domainName,
+        status: domain.transferStatus || 'initiated',
+        stage: domain.transferStatus || 'initiated',
+        transferId: '',
+        lastUpdated: domain.updatedAt?.toISOString() || domain.createdAt.toISOString(),
+        initiatedAt: domain.createdAt,
+      }));
+    }
+  }));
+
+  // Resend transfer approval email
+  app.post('/api/v1/domains/transfer/resend-approval/:domain', requireAuth, asyncHandler(async (req, res) => {
+    const domainName = req.params.domain.toLowerCase();
+
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.domainName, domainName),
+        eq(schema.domains.customerId, req.user!.userId),
+        eq(schema.domains.isTransfer, true),
+        eq(schema.domains.status, 'pending_transfer'),
+      ),
+    });
+    if (!domain) {
+      return res.status(404).json(errorResponse('Transfer not found or no longer pending.'));
+    }
+
+    try {
+      await openSRS.resendTransferApprovalEmail(domainName);
+      res.json(successResponse(null, 'Approval email has been resent. Please check the domain registrant email inbox.'));
+    } catch (err: unknown) {
+      console.error(`[Transfer] Failed to resend approval for ${domainName}:`, err);
+      return res.status(400).json(errorResponse('Unable to resend the approval email at this time. Please try again later.'));
+    }
+  }));
+
+  // Cancel transfer
+  app.post('/api/v1/domains/transfer/cancel/:domain', requireAuth, asyncHandler(async (req, res) => {
+    const domainName = req.params.domain.toLowerCase();
+
+    const domain = await db.query.domains.findFirst({
+      where: and(
+        eq(schema.domains.domainName, domainName),
+        eq(schema.domains.customerId, req.user!.userId),
+        eq(schema.domains.isTransfer, true),
+        eq(schema.domains.status, 'pending_transfer'),
+      ),
+    });
+    if (!domain) {
+      return res.status(404).json(errorResponse('Transfer not found or no longer pending.'));
+    }
+
+    try {
+      // Try to get a transfer ID for cancellation
+      let transferId = '';
+      try {
+        const status = await openSRS.checkTransfer(domainName);
+        transferId = status.transferId;
+      } catch { /* proceed with empty ID */ }
+
+      await openSRS.cancelTransfer(domainName, transferId);
+
+      // Soft delete the domain record
+      await db.update(schema.domains)
+        .set({
+          status: 'expired',
+          transferStatus: 'cancelled',
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.domains.id, domain.id));
+
+      res.json(successResponse(null, 'Transfer has been cancelled.'));
+    } catch (err: unknown) {
+      console.error(`[Transfer] Failed to cancel transfer for ${domainName}:`, err);
+      return res.status(400).json(errorResponse('Unable to cancel the transfer at this time. Please try again later.'));
+    }
+  }));
+
+  // Get all active transfers for current user
+  app.get('/api/v1/domains/transfers', requireAuth, asyncHandler(async (req, res) => {
+    const transfers = await db
+      .select({
+        id: schema.domains.id,
+        uuid: schema.domains.uuid,
+        domainName: schema.domains.domainName,
+        status: schema.domains.status,
+        transferStatus: schema.domains.transferStatus,
+        createdAt: schema.domains.createdAt,
+        updatedAt: schema.domains.updatedAt,
+      })
+      .from(schema.domains)
+      .where(and(
+        eq(schema.domains.customerId, req.user!.userId),
+        eq(schema.domains.isTransfer, true),
+        sql`${schema.domains.deletedAt} IS NULL`,
+      ))
+      .orderBy(desc(schema.domains.createdAt));
+
+    res.json(successResponse(transfers));
   }));
 
   app.post('/api/v1/domains/:uuid/dns/sync', requireAuth, asyncHandler(async (req, res) => {

@@ -30,6 +30,7 @@ import { CheckoutPage } from '@/pages/checkout/checkout';
 import { CheckoutSuccessPage } from '@/pages/checkout/success';
 import { CheckoutCancelPage } from '@/pages/checkout/cancel';
 import { DomainSearchPage } from '@/pages/domains/search';
+import { DomainTransferPage } from '@/pages/domains/transfer';
 import { HostingPlansPage } from '@/pages/hosting/plans';
 import { EmailPlansPage } from '@/pages/email/plans';
 import { WebsiteBuilderPage as PublicWebsiteBuilderPage } from '@/pages/website-builder/index';
@@ -71,7 +72,7 @@ export const router = createBrowserRouter([
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
       { path: 'auth/magic-link', element: <MagicLinkPage /> },
       { path: 'domains/search', element: <DomainSearchPage /> },
-      { path: 'domains/transfer', element: <DomainSearchPage /> },
+      { path: 'domains/transfer', element: <DomainTransferPage /> },
       { path: 'hosting', element: <HostingPlansPage /> },
       { path: 'email', element: <EmailPlansPage /> },
       { path: 'website-builder', element: <PublicWebsiteBuilderPage /> },

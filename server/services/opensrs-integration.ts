@@ -530,6 +530,57 @@ export class OpenSRSIntegration {
   }
 
   /**
+   * Check transfer status for an inbound domain transfer
+   */
+  async checkTransfer(domain: string): Promise<{
+    status: string;
+    transferId: string;
+    stage: string;
+    lastUpdated: string;
+  }> {
+    const response = await this.apiRequest('GET_TRANSFERS_IN', 'DOMAIN', {
+      domain,
+    });
+
+    const attrs = response.attributes || {};
+    return {
+      status: attrs.status || 'unknown',
+      transferId: attrs.order_id || attrs.id || '',
+      stage: attrs.gaining_foa_status || attrs.status || 'initiated',
+      lastUpdated: attrs.last_update_time || new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Cancel an in-progress domain transfer
+   */
+  async cancelTransfer(domain: string, transferId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.apiRequest('CANCEL_TRANSFER', 'DOMAIN', {
+      domain,
+      order_id: transferId,
+    });
+
+    return {
+      success: true,
+      message: response.response_text || 'Transfer cancelled',
+    };
+  }
+
+  /**
+   * Resend the registrant approval email for a pending transfer
+   */
+  async resendTransferApprovalEmail(domain: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.apiRequest('SEND_CIR', 'DOMAIN', {
+      domain,
+    });
+
+    return {
+      success: true,
+      message: response.response_text || 'Approval email resent',
+    };
+  }
+
+  /**
    * Renew a domain
    */
   async renewDomain(domain: string, years: number): Promise<any> {
@@ -855,6 +906,39 @@ export class OpenSRSIntegration {
               ],
             },
           },
+        };
+
+      case 'GET_TRANSFERS_IN': {
+        const stages = ['initiated', 'pending_registrar', 'approval_email_sent', 'approved', 'transferring', 'completed'];
+        const hash = (attributes.domain || '').split('').reduce((s: number, c: string) => s + c.charCodeAt(0), 0);
+        const stageIndex = Math.min(hash % 6, 3); // Keep in early stages for testing
+        return {
+          is_success: '1',
+          response_code: '200',
+          attributes: {
+            status: stages[stageIndex],
+            gaining_foa_status: stages[stageIndex],
+            order_id: `mock-transfer-${hash}`,
+            id: `mock-transfer-${hash}`,
+            last_update_time: new Date().toISOString(),
+          },
+        };
+      }
+
+      case 'CANCEL_TRANSFER':
+        return {
+          is_success: '1',
+          response_code: '200',
+          response_text: 'Transfer cancelled successfully',
+          attributes: {},
+        };
+
+      case 'SEND_CIR':
+        return {
+          is_success: '1',
+          response_code: '200',
+          response_text: 'Registrant approval email sent',
+          attributes: {},
         };
 
       default:
