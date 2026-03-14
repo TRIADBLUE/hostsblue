@@ -7,7 +7,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 
 export function registerEmailRoutes(app: Express, ctx: RouteContext) {
-  const { db, opensrsEmail } = ctx;
+  const { db, opensrsEmail, emailService } = ctx;
 
   app.get('/api/v1/email/plans', asyncHandler(async (req, res) => {
     const plans = await db.query.emailPlans.findMany({
@@ -103,6 +103,14 @@ export function registerEmailRoutes(app: Express, ctx: RouteContext) {
       description: `Created email account ${data.username}@${data.domain}`,
       ipAddress: req.ip,
     });
+
+    // Send email account ready notification
+    emailService.sendEmailAccountReady(customer?.email || `${data.username}@${data.domain}`, {
+      customerName: customer?.firstName || 'Customer',
+      emailAddress: `${data.username}@${data.domain}`,
+      domain: data.domain,
+      webmailUrl: `https://webmail.${data.domain}`,
+    }).catch(() => {});
 
     res.status(201).json(successResponse(account, 'Email account created'));
   }));

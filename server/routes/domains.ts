@@ -7,7 +7,7 @@ import { asyncHandler, successResponse, errorResponse, domainSearchSchema, type 
 const DOMAIN_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z]{2,})+$/;
 
 export function registerDomainRoutes(app: Express, ctx: RouteContext) {
-  const { db, openSRS } = ctx;
+  const { db, openSRS, emailService } = ctx;
 
   // Search domain availability
   app.get('/api/v1/domains/search', asyncHandler(async (req, res) => {
@@ -361,6 +361,12 @@ export function registerDomainRoutes(app: Express, ctx: RouteContext) {
         privacyEnabled: false,
         nameservers: [],
       }).returning();
+
+      // Send transfer initiated email
+      emailService.sendTransferInitiated(customer.email, {
+        customerName: customer.firstName || 'Customer',
+        domainName: domainLower,
+      }).catch(() => {});
 
       res.status(201).json(successResponse({
         domain: domainLower,

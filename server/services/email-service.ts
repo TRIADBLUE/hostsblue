@@ -29,7 +29,7 @@ function brandedLayout(title: string, body: string): string {
         <!-- Header -->
         <tr><td style="background:#064A6C;padding:24px 32px;">
           <span style="font-size:22px;font-weight:800;color:#ffffff;text-decoration:none;">
-            <span style="color:#00cc99;">hosts</span><span style="color:#6699ff;">blue</span><span style="color:#00cc99;">.com</span>
+            <span style="color:#008060;">hosts</span><span style="color:#0000FF;">blue</span><span style="color:#008060;">.com</span>
           </span>
         </td></tr>
         <!-- Body -->
@@ -218,6 +218,114 @@ export class EmailService {
       <p style="margin-top:16px;color:#6b7280;font-size:13px;">This link expires in 15 minutes. If you didn't request this, you can safely ignore this email.</p>
     `;
     await this.send(to, 'Sign In to hostsblue', brandedLayout('Magic Link', body));
+  }
+
+  async sendTransferInitiated(to: string, data: {
+    customerName: string;
+    domainName: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Domain Transfer Initiated</h2>
+      <p>Hi ${data.customerName}, we've started the transfer of <strong>${data.domainName}</strong> to hostsblue.</p>
+      <p>You will receive an approval email from the current registrar shortly. Please approve the transfer to proceed.</p>
+      <table style="margin:16px 0;background:#f9fafb;border-radius:7px;padding:16px;width:100%;">
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Domain</td><td style="padding:4px 12px;font-weight:600;">${data.domainName}</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Status</td><td style="padding:4px 12px;">Awaiting approval</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Estimated completion</td><td style="padding:4px 12px;">5–7 days after approval</td></tr>
+      </table>
+      ${btn('Track Transfer', `${CLIENT_URL}/dashboard/domains`)}
+      <p style="margin-top:16px;color:#6b7280;font-size:13px;">Make sure your domain is unlocked at your current registrar and that the WHOIS email address is accessible.</p>
+    `;
+    await this.send(to, `Transfer Started — ${data.domainName}`, brandedLayout('Transfer Initiated', body));
+  }
+
+  async sendTransferCompleted(to: string, data: {
+    customerName: string;
+    domainName: string;
+    expiryDate: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Transfer Complete</h2>
+      <p>Hi ${data.customerName}, great news! <strong>${data.domainName}</strong> has been successfully transferred to hostsblue.</p>
+      <p>Your domain is now active and managed from your hostsblue dashboard. Auto-renewal is enabled by default.</p>
+      <table style="margin:16px 0;background:#f9fafb;border-radius:7px;padding:16px;width:100%;">
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Domain</td><td style="padding:4px 12px;font-weight:600;">${data.domainName}</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Expires</td><td style="padding:4px 12px;">${data.expiryDate}</td></tr>
+      </table>
+      ${btn('Manage Domain', `${CLIENT_URL}/dashboard/domains`)}
+    `;
+    await this.send(to, `Transfer Complete — ${data.domainName}`, brandedLayout('Transfer Complete', body));
+  }
+
+  async sendSubscriptionRenewal(to: string, data: {
+    customerName: string;
+    planName: string;
+    amount: number;
+    currency: string;
+    nextRenewalDate: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Subscription Renewed</h2>
+      <p>Hi ${data.customerName}, your <strong>${data.planName}</strong> subscription has been renewed successfully.</p>
+      <table style="margin:16px 0;background:#f9fafb;border-radius:7px;padding:16px;width:100%;">
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Plan</td><td style="padding:4px 12px;font-weight:600;">${data.planName}</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Amount charged</td><td style="padding:4px 12px;">$${(data.amount / 100).toFixed(2)} ${data.currency}</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Next renewal</td><td style="padding:4px 12px;">${data.nextRenewalDate}</td></tr>
+      </table>
+      ${btn('View Billing', `${CLIENT_URL}/dashboard/billing`)}
+    `;
+    await this.send(to, `Subscription Renewed — ${data.planName}`, brandedLayout('Subscription Renewed', body));
+  }
+
+  async sendSubscriptionSuspended(to: string, data: {
+    customerName: string;
+    planName: string;
+    amountOwed: number;
+    currency: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#DC2626;">Subscription Suspended</h2>
+      <p>Hi ${data.customerName}, your <strong>${data.planName}</strong> subscription has been suspended due to repeated payment failures.</p>
+      <p>Outstanding balance: <strong>$${(data.amountOwed / 100).toFixed(2)} ${data.currency}</strong></p>
+      <p>Your services associated with this subscription are no longer active. To restore access, please update your payment method and reactivate from your billing dashboard.</p>
+      ${btn('Update Payment & Reactivate', `${CLIENT_URL}/dashboard/billing`)}
+      <p style="margin-top:16px;color:#6b7280;font-size:13px;">If you believe this is an error, please contact our support team.</p>
+    `;
+    await this.send(to, `Subscription Suspended — ${data.planName}`, brandedLayout('Subscription Suspended', body));
+  }
+
+  async sendSubscriptionCancelled(to: string, data: {
+    customerName: string;
+    planName: string;
+    effectiveDate: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Subscription Cancelled</h2>
+      <p>Hi ${data.customerName}, your <strong>${data.planName}</strong> subscription has been cancelled.</p>
+      <p>Your access will end on <strong>${data.effectiveDate}</strong>. Any data associated with this subscription will be retained for 30 days after cancellation.</p>
+      ${btn('Resubscribe', `${CLIENT_URL}/pricing`)}
+      <p style="margin-top:16px;color:#6b7280;font-size:13px;">We're sorry to see you go. If there's anything we can do to improve, please let us know.</p>
+    `;
+    await this.send(to, `Subscription Cancelled — ${data.planName}`, brandedLayout('Subscription Cancelled', body));
+  }
+
+  async sendEmailAccountReady(to: string, data: {
+    customerName: string;
+    emailAddress: string;
+    domain: string;
+    webmailUrl: string;
+  }): Promise<void> {
+    const body = `
+      <h2 style="margin:0 0 16px;color:#09080E;">Your Email Account is Ready</h2>
+      <p>Hi ${data.customerName}, your new email account <strong>${data.emailAddress}</strong> has been set up and is ready to use.</p>
+      <table style="margin:16px 0;background:#f9fafb;border-radius:7px;padding:16px;width:100%;">
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Email</td><td style="padding:4px 12px;font-weight:600;">${data.emailAddress}</td></tr>
+        <tr><td style="padding:4px 12px;color:#4b5563;font-size:13px;">Domain</td><td style="padding:4px 12px;">${data.domain}</td></tr>
+      </table>
+      ${btn('Open Webmail', data.webmailUrl)}
+      ${btn('Manage Email', `${CLIENT_URL}/dashboard/email`)}
+    `;
+    await this.send(to, `Email Ready — ${data.emailAddress}`, brandedLayout('Email Account Ready', body));
   }
 
   async sendGeneric(to: string, subject: string, heading: string, message: string, ctaText?: string, ctaUrl?: string): Promise<void> {

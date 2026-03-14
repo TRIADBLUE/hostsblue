@@ -173,6 +173,20 @@ export class BillingEngine {
         paymentId,
       });
 
+      // Send renewal confirmation email
+      const customer = await this.db.query.customers.findFirst({
+        where: eq(schema.customers.id, sub.customerId),
+      });
+      if (customer) {
+        await this.emailService.sendSubscriptionRenewal(customer.email, {
+          customerName: customer.firstName || 'Customer',
+          planName: sub.planName,
+          amount: sub.amount,
+          currency: sub.currency,
+          nextRenewalDate: nextPeriodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+        });
+      }
+
       console.log(`[BillingEngine] Successfully renewed subscription ${sub.id}.`);
     } catch (err) {
       console.error(`[BillingEngine] Charge failed for subscription ${sub.id}:`, err);
@@ -416,14 +430,12 @@ export class BillingEngine {
     });
 
     if (customer) {
-      await this.emailService.sendGeneric(
-        customer.email,
-        `Subscription Suspended — ${sub.planName}`,
-        'Your Subscription Has Been Suspended',
-        `Hi ${customer.firstName || 'Customer'}, we were unable to process payment for your <strong>${sub.planName}</strong> plan after multiple attempts. Your subscription is now suspended. You have ${SUSPENSION_GRACE_DAYS} days to update your payment method before your subscription is cancelled.`,
-        'Update Payment Method',
-        `${CLIENT_URL}/dashboard/billing`,
-      );
+      await this.emailService.sendSubscriptionSuspended(customer.email, {
+        customerName: customer.firstName || 'Customer',
+        planName: sub.planName,
+        amountOwed: sub.amount,
+        currency: sub.currency,
+      });
     }
 
     console.log(`[BillingEngine] Suspended subscription ${subscriptionId}.`);
@@ -459,14 +471,11 @@ export class BillingEngine {
     });
 
     if (customer) {
-      await this.emailService.sendGeneric(
-        customer.email,
-        `Subscription Cancelled — ${sub.planName}`,
-        'Your Subscription Has Been Cancelled',
-        `Hi ${customer.firstName || 'Customer'}, your <strong>${sub.planName}</strong> subscription has been cancelled. If you'd like to reactivate your plan, you can do so from your dashboard.`,
-        'Reactivate Subscription',
-        `${CLIENT_URL}/dashboard/billing`,
-      );
+      await this.emailService.sendSubscriptionCancelled(customer.email, {
+        customerName: customer.firstName || 'Customer',
+        planName: sub.planName,
+        effectiveDate: sub.currentPeriodEnd.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      });
     }
 
     console.log(`[BillingEngine] Cancelled subscription ${subscriptionId} (reason: ${reason}).`);
