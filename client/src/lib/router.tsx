@@ -34,6 +34,7 @@ import { DomainTransferPage } from '@/pages/domains/transfer';
 import { HostingPlansPage } from '@/pages/hosting/plans';
 import { EmailPlansPage } from '@/pages/email/plans';
 import { WebsiteBuilderPage as PublicWebsiteBuilderPage } from '@/pages/website-builder/index';
+import { BuilderPlansPage } from '@/pages/website-builder/plans';
 import { SecurityPage } from '@/pages/security/index';
 import { PricingPage } from '@/pages/pricing/index';
 import { AboutPage } from '@/pages/about/index';
@@ -76,6 +77,7 @@ export const router = createBrowserRouter([
       { path: 'hosting', element: <HostingPlansPage /> },
       { path: 'email', element: <EmailPlansPage /> },
       { path: 'website-builder', element: <PublicWebsiteBuilderPage /> },
+      { path: 'website-builder/plans', element: <BuilderPlansPage /> },
       { path: 'security', element: <SecurityPage /> },
       { path: 'pricing', element: <PricingPage /> },
       { path: 'about', element: <AboutPage /> },
