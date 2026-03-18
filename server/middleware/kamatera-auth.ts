@@ -24,9 +24,22 @@ export function createKamateraAuth(db: DB) {
 
       console.log(`[${timestamp}] Kamatera auth: decrypted email = ${email}`);
 
-      const customer = await db.query.customers.findFirst({
-        where: eq(schema.customers.email, email),
-      });
+      const [customer] = await db.select({
+        id: schema.customers.id,
+        uuid: schema.customers.uuid,
+        email: schema.customers.email,
+        firstName: schema.customers.firstName,
+        lastName: schema.customers.lastName,
+        companyName: schema.customers.companyName,
+        phone: schema.customers.phone,
+        address1: schema.customers.address1,
+        address2: schema.customers.address2,
+        city: schema.customers.city,
+        state: schema.customers.state,
+        postalCode: schema.customers.postalCode,
+        countryCode: schema.customers.countryCode,
+        isActive: schema.customers.isActive,
+      }).from(schema.customers).where(eq(schema.customers.email, email)).limit(1);
 
       if (!customer) {
         console.log(`[${timestamp}] Kamatera auth failed: customer not found for ${email}`);
