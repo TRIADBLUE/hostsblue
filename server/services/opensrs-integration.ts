@@ -286,8 +286,9 @@ export class OpenSRSIntegration {
       throw new OpenSRSError('Invalid XCP response: could not parse data', 'OPENSRS_PARSE_ERROR');
     }
 
-    // Throw on API-level failures (is_success=0)
-    if (parsed.is_success === '0') {
+    // Response code 211 = "Domain taken" — valid response, not an error
+    // Only throw on actual API failures (is_success=0 AND not a domain lookup result)
+    if (parsed.is_success === '0' && parsed.response_code !== '211') {
       const code = parsed.response_code || 'UNKNOWN';
       const text = parsed.response_text || 'Unknown error';
       throw new OpenSRSError(
@@ -415,20 +416,9 @@ export class OpenSRSIntegration {
     // Batch lookups to avoid overwhelming the API (10 at a time)
     const BATCH_SIZE = 10;
     const results: DomainAvailabilityResult[] = [];
-    let apiFailed = false;
 
     for (let i = 0; i < searchTlds.length; i += BATCH_SIZE) {
       const batch = searchTlds.slice(i, i + BATCH_SIZE);
-
-      // If the API already failed on a previous batch, skip to mock
-      if (apiFailed) {
-        for (const tld of batch) {
-          const fullDomain = `${cleanDomain}${tld}`;
-          const mockResult = this.mockResponse('LOOKUP', 'DOMAIN', { domain: fullDomain });
-          results.push({ domain: fullDomain, tld, available: mockResult.response_code === '210' });
-        }
-        continue;
-      }
 
       const batchResults = await Promise.all(
         batch.map(async (tld): Promise<DomainAvailabilityResult> => {
@@ -442,10 +432,13 @@ export class OpenSRSIntegration {
             };
           } catch (error) {
             console.error(`[OpenSRS] LOOKUP failed for ${fullDomain}:`, (error as Error).message);
-            apiFailed = true;
-            // Fall back to mock for this domain
-            const mockResult = this.mockResponse('LOOKUP', 'DOMAIN', { domain: fullDomain });
-            return { domain: fullDomain, tld, available: mockResult.response_code === '210' };
+            // On API error, mark as unavailable — never guess availability
+            return {
+              domain: fullDomain,
+              tld,
+              available: false,
+              reason: `Lookup failed: ${(error as Error).message}`,
+            };
           }
         })
       );
