@@ -198,6 +198,24 @@ app.get('/test', (req, res) => {
   res.json({ message: 'Server is working', timestamp: new Date().toISOString() });
 });
 
+// Debug login — DELETE AFTER USE
+app.get('/api/v1/admin/debug-login', async (req, res) => {
+  if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
+  const email = req.query.email as string;
+  try {
+    const result = await pool.query('SELECT id, email, password_hash, is_active FROM customers WHERE email = $1', [email]);
+    if (result.rows.length === 0) return res.json({ found: false, email });
+    const customer = result.rows[0];
+    const bcrypt = await import('bcrypt');
+    const passwordMatch = await bcrypt.default.compare(req.query.password as string, customer.password_hash);
+    // Also check what columns exist
+    const cols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'customers' ORDER BY ordinal_position`);
+    res.json({ found: true, id: customer.id, is_active: customer.is_active, passwordMatch, columns: cols.rows.map((r: any) => r.column_name) });
+  } catch (err: any) {
+    res.json({ error: err.message });
+  }
+});
+
 // One-time setup endpoint — run against production DB via the deployed app
 // DELETE THIS AFTER USE
 app.get('/api/v1/admin/setup-production', async (req, res) => {
