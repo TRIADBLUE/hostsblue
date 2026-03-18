@@ -1,5 +1,7 @@
 import { Express } from 'express';
 import { eq, desc, and } from 'drizzle-orm';
+import path from 'path';
+import fs from 'fs';
 import * as schema from '../../shared/schema.js';
 import { createKamateraAuth } from '../middleware/kamatera-auth.js';
 import { asyncHandler, successResponse, errorResponse, type RouteContext } from './shared.js';
@@ -112,6 +114,22 @@ export function registerKamateraPageRoutes(app: Express, ctx: RouteContext) {
 
     res.status(201).json(successResponse(ticket, 'Ticket created successfully'));
   }));
+
+  // SPA page routes — serve index.html so React handles rendering
+  const distPath = path.resolve(process.cwd(), 'dist/client');
+  const serveSPA = (req: any, res: any) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.type('html').sendFile(indexPath);
+    } else {
+      res.redirect(`/?redirect=${encodeURIComponent(req.originalUrl)}`);
+    }
+  };
+
+  app.get('/billing/profile', serveSPA);
+  app.get('/support/tickets', serveSPA);
+  app.get('/support/tickets/new', serveSPA);
+  app.get('/help', serveSPA);
 
   // Help Center — returns structured help content
   app.get('/api/v1/kamatera/help', kamateraAuth, asyncHandler(async (req, res) => {
