@@ -14,7 +14,7 @@ export function decryptKamateraData(encryptedParam: string): string | false {
     decipher.setAutoPadding(false);
     const decrypted = Buffer.concat([decipher.update(cipher), decipher.final()]);
 
-    const email = decrypted.toString('utf8').trim();
+    const email = decrypted.toString('utf8').replace(/\0+$/, '').trim();
     const valid = crypto.createHash('md5').update(email).digest();
 
     if (!valid.equals(hash)) return false;
