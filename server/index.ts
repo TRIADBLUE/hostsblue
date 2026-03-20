@@ -208,9 +208,23 @@ app.get('/api/v1/admin/debug-login', async (req, res) => {
     const customer = result.rows[0];
     const bcrypt = await import('bcrypt');
     const passwordMatch = await bcrypt.default.compare(req.query.password as string, customer.password_hash);
-    // Also check what columns exist
     const cols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'customers' ORDER BY ordinal_position`);
     res.json({ found: true, id: customer.id, is_active: customer.is_active, passwordMatch, columns: cols.rows.map((r: any) => r.column_name) });
+  } catch (err: any) {
+    res.json({ error: err.message });
+  }
+});
+
+// Reset password — DELETE AFTER USE
+app.get('/api/v1/admin/reset-password', async (req, res) => {
+  if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
+  const email = req.query.email as string;
+  const password = req.query.password as string;
+  try {
+    const bcrypt = await import('bcrypt');
+    const hash = await bcrypt.default.hash(password, 10);
+    await pool.query('UPDATE customers SET password_hash = $1 WHERE email = $2', [hash, email]);
+    res.json({ success: true, message: `Password reset for ${email}` });
   } catch (err: any) {
     res.json({ error: err.message });
   }
