@@ -230,6 +230,22 @@ app.get('/api/v1/admin/reset-password', async (req, res) => {
   }
 });
 
+// Check table — DELETE AFTER USE
+app.get('/api/v1/admin/check-table', async (req, res) => {
+  if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
+  const table = req.query.table as string;
+  try {
+    const exists = await pool.query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)`, [table]);
+    if (!exists.rows[0].exists) {
+      return res.json({ table, exists: false });
+    }
+    const cols = await pool.query(`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`, [table]);
+    res.json({ table, exists: true, columns: cols.rows });
+  } catch (err: any) {
+    res.json({ error: err.message });
+  }
+});
+
 // Promote to admin — DELETE AFTER USE
 app.get('/api/v1/admin/make-admin', async (req, res) => {
   if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
