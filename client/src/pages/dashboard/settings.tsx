@@ -461,6 +461,12 @@ function WidgetIntegrationSettings() {
         </button>
       </div>
 
+      {createMutation.isError && (
+        <p className="text-red-500 text-sm mb-4">
+          Failed to generate token: {(createMutation.error as Error).message}
+        </p>
+      )}
+
       {/* Token list */}
       {isLoading ? (
         <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 text-[#064A6C] animate-spin" /></div>

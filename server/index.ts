@@ -230,6 +230,18 @@ app.get('/api/v1/admin/reset-password', async (req, res) => {
   }
 });
 
+// Promote to admin — DELETE AFTER USE
+app.get('/api/v1/admin/make-admin', async (req, res) => {
+  if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
+  const email = (req.query.email as string) || 'deanlaskowski@hostsblue.com';
+  try {
+    await pool.query('UPDATE customers SET is_admin = true WHERE email = $1', [email]);
+    res.json({ success: true, message: `${email} is now admin` });
+  } catch (err: any) {
+    res.json({ error: err.message });
+  }
+});
+
 // One-time setup endpoint — run against production DB via the deployed app
 // DELETE THIS AFTER USE
 app.get('/api/v1/admin/setup-production', async (req, res) => {
