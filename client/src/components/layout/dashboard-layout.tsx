@@ -7,19 +7,19 @@ import { useAuth } from '@/hooks/use-auth';
 import { Brandsignature } from '@/components/ui/brandsignature';
 
 const mainItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard' },
-  { icon: Globe, label: 'Domains', href: '/dashboard/domains' },
-  { icon: Server, label: 'Hosting', href: '/dashboard/hosting' },
-  { icon: Cloud, label: 'Cloud Servers', href: '/dashboard/servers' },
-  { icon: Mail, label: 'Email', href: '/dashboard/email' },
-  { icon: Lock, label: 'SSL Certificates', href: '/dashboard/ssl' },
-  { icon: Shield, label: 'SiteLock', href: '/dashboard/sitelock' },
-  { icon: Palette, label: 'Website Builder', href: '/dashboard/website-builder' },
-  { icon: ListTodo, label: 'Tasks', href: '/dashboard/tasks' },
-  { icon: ShoppingCart, label: 'Orders', href: '/dashboard/orders' },
-  { icon: CreditCard, label: 'Billing', href: '/dashboard/billing' },
-  { icon: LifeBuoy, label: 'Support', href: '/dashboard/support' },
-  { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+  { icon: LayoutDashboard, label: 'Dashboard', sub: 'Overview & activity', href: '/dashboard' },
+  { icon: Globe, label: 'Domains', sub: 'Register, transfer & DNS', href: '/dashboard/domains' },
+  { icon: Server, label: 'Hosting', sub: 'Plans, backups & stats', href: '/dashboard/hosting' },
+  { icon: Cloud, label: 'Cloud Servers', sub: 'VPS & dedicated servers', href: '/dashboard/servers' },
+  { icon: Mail, label: 'Email', sub: 'Mailboxes & forwarding', href: '/dashboard/email' },
+  { icon: Lock, label: 'SSL Certificates', sub: 'Manage & install certs', href: '/dashboard/ssl' },
+  { icon: Shield, label: 'SiteLock', sub: 'Security scanning', href: '/dashboard/sitelock' },
+  { icon: Palette, label: 'Website Builder', sub: 'Design & publish sites', href: '/dashboard/website-builder' },
+  { icon: ListTodo, label: 'Tasks', sub: 'Pending actions', href: '/dashboard/tasks' },
+  { icon: ShoppingCart, label: 'Orders', sub: 'Purchase history', href: '/dashboard/orders' },
+  { icon: CreditCard, label: 'Billing', sub: 'Subscriptions & invoices', href: '/dashboard/billing' },
+  { icon: LifeBuoy, label: 'Support', sub: 'Tickets & help', href: '/dashboard/support' },
+  { icon: Settings, label: 'Settings', sub: 'Account & preferences', href: '/dashboard/settings' },
 ];
 
 const platformLinks = [
@@ -60,8 +60,11 @@ export function DashboardLayout() {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
+                <item.icon className="w-4 h-4 flex-shrink-0" />
+                <div className="min-w-0">
+                  <span className="block">{item.label}</span>
+                  <span className={`block text-[11px] leading-tight ${active ? 'text-[#064A6C]/60' : 'text-gray-400'}`}>{item.sub}</span>
+                </div>
               </Link>
             );
           })}
