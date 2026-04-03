@@ -54,17 +54,93 @@ export function Footer() {
 
           {/* TRIADBLUE.COM Ecosystem */}
           <div>
-            <h3 className="text-sm mb-4 flex items-baseline gap-1.5">
-              <Brandsignature brand="triadblue" size={14} />
-              <span className="text-[#09080E] font-semibold">Ecosystem</span>
-            </h3>
-            <ul className="space-y-3">
-              <li><Brandsignature brand="hostsblue" size={14} /></li>
-              <li><Brandsignature brand="swipesblue" size={14} /></li>
-              <li><Brandsignature brand="businessblueprint" size={14} /></li>
-              <li><Brandsignature brand="scansblue" size={14} /></li>
-              <li style={{ paddingLeft: `${14 * 1.6 + 14 * 0.3}px` }}><Brandsignature brand="triadblue" size={14} /></li>
-            </ul>
+            {/* TRIADBLUE.COM ECOSYSTEM — always first, always very large */}
+            <div className="mb-6">
+              <img
+                src="/triadblue-ecosystem-logo.png"
+                alt="TRIADBLUE.COM ECOSYSTEM"
+                style={{ height: 40, objectFit: 'contain' }}
+              />
+              <p className="text-xs mt-2" style={{ color: '#6B7280' }}>
+                Six Platforms. One Ecosystem. Go Blue.
+              </p>
+            </div>
+
+            {/* Divider */}
+            <div style={{ borderTop: '0.5px solid #09080E', marginBottom: '20px' }} />
+
+            {/* All platforms in fixed order — hostsblue is featured (larger) */}
+            <div className="space-y-4">
+
+              {/* businessblueprint.io */}
+              <div>
+                <a href="https://businessblueprint.io" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src="/bb-header-logo.png"
+                    alt="businessblueprint.io"
+                    style={{ height: 22, objectFit: 'contain' }}
+                  />
+                </a>
+                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
+                  Get Assessed. Get Prescribed. Get Business.
+                </p>
+              </div>
+
+              {/* swipesblue.com */}
+              <div>
+                <a href="https://swipesblue.com" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src="/swipesblue_logo_image_and_text_as_url.png"
+                    alt="swipesblue.com"
+                    style={{ height: 22, objectFit: 'contain' }}
+                  />
+                </a>
+                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
+                  Go Blue. Get Swiped. Get Paid.
+                </p>
+              </div>
+
+              {/* hostsblue.com — featured (this site) */}
+              <div>
+                <img
+                  src="/hostsblue_logo_image_and_text_as_url.png"
+                  alt="hostsblue.com"
+                  style={{ height: 32, objectFit: 'contain' }}
+                />
+                <p className="text-sm mt-2" style={{ color: '#6B7280' }}>
+                  Go Blue. Get Site. Go Live.
+                </p>
+              </div>
+
+              {/* scansblue.com */}
+              <div>
+                <a href="https://scansblue.com" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src="/scansblue_logo_image_and_text_as_url.png"
+                    alt="scansblue.com"
+                    style={{ height: 22, objectFit: 'contain' }}
+                  />
+                </a>
+                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
+                  Go Blue. Get Scanned. Get Scored.
+                </p>
+              </div>
+
+              {/* BUILDERBLUE².COM */}
+              <div>
+                <a href="https://builderblue2.com" target="_blank" rel="noopener noreferrer">
+                  <img
+                    src="/builderblue2-logo-url.png"
+                    alt="BUILDERBLUE².COM"
+                    style={{ height: 22, objectFit: 'contain' }}
+                  />
+                </a>
+                <p className="text-xs mt-1" style={{ color: '#6B7280' }}>
+                  Go Blue. Get Vibed. Get Ahead.
+                </p>
+              </div>
+
+            </div>
           </div>
         </div>
 
@@ -95,7 +171,7 @@ export function Footer() {
             . A <Brandsignature brand="triadblue" size={12} /> Company.
           </p>
           <span className="text-[#E5E7EB]">|</span>
-          <p>Secure payments by Stripe</p>
+          <p>Secure payments by <a href="https://swipesblue.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#09080E] transition-colors">swipesblue.com</a></p>
         </div>
       </div>
     </footer>

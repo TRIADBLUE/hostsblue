@@ -37,14 +37,14 @@ Those rules govern colors, fonts, naming, payments, and ecosystem standards. The
 - Website builder (AI-powered)
 
 ### Key Files
-- `client/src/components/layout/footer.tsx` — footer (needs ecosystem rebuild + "Stripe" removal)
+- `client/src/components/layout/footer.tsx` — footer with universal ecosystem pattern
 - `client/src/components/layout/header.tsx` — site header
 - `client/src/components/layout/root-layout.tsx` — main layout wrapper
 - `client/src/components/layout/dashboard-layout.tsx` — authenticated dashboard
 - `client/src/components/ui/brandsignature.tsx` — brand rendering component
 
 ### Payment Integration
-All payments through swipesblue.com. The footer currently says "Secure payments by Stripe" — this MUST be changed to "Secure payments by swipesblue.com".
+All payments through swipesblue.com. Footer reads "Secure payments by swipesblue.com" with link.
 
 ### Logo Assets
 Logos are stored in `public/`:
@@ -64,15 +64,16 @@ Logos are stored in `public/`:
 - Website builder (AI-powered) ✓
 - Dashboard layout ✓
 - Footer with ecosystem column (uses Brandsignature component, needs logo images + taglines) ✓
+- Footer ecosystem rebuilt: universal pattern with logo images, official taglines, fixed platform order, 3 size tiers (40/32/22px), hostsblue featured ✓
+- "Secure payments by Stripe" replaced with "Secure payments by swipesblue.com" ✓
+- BUILDERBLUE2.COM added to ecosystem section ✓
+- Ecosystem logos downloaded (triadblue-ecosystem-logo, bb-header-logo, builderblue2-logo-url) ✓
 
 ## PENDING
 
-- Footer rebuild: replace Brandsignature text with logo images + official taglines (prompt written: ECOSYSTEM_FOOTER_3_HOSTSBLUE.md)
-- Remove "Secure payments by Stripe" from footer
 - Cloud hosting stub pages
 - Support routes
 - Plan enforcement after purchase
-- Add BUILDERBLUE2.COM to ecosystem section
 
 ---
 
@@ -81,5 +82,6 @@ Logos are stored in `public/`:
 | Date | Changes |
 |------|---------|
 | 2026-04-02 | Ecosystem footer prompt written. Stripe reference in footer identified for removal. |
+| 2026-04-03 | Footer ecosystem rebuilt: universal pattern with logo images, official taglines, fixed order (bb→swipes→hosts→scans→builder2), 3 size tiers, hostsblue featured at 32px. Stripe removed, swipesblue.com linked. BUILDERBLUE2.COM added. |
 
 **AGENTS: Update this section on every commit. Your work is not done until this changelog reflects it.**
