@@ -5,17 +5,7 @@ export function Footer() {
   return (
     <footer className="bg-white border-t border-[#E5E7EB]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
-          {/* Brand */}
-          <div className="lg:col-span-1 lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
-            <div className="mb-3">
-              <Brandsignature brand="hostsblue" size={20} linkTo="/" />
-            </div>
-            <p className="text-sm text-[#4B5563] leading-relaxed">
-              Domains, hosting, email, and security — everything your business needs online.
-            </p>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Products */}
           <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
             <h3 className="text-[#09080E] font-semibold text-sm mb-4">Products</h3>
