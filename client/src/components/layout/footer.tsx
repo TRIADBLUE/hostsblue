@@ -7,7 +7,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* TRIADBLUE.COM Ecosystem */}
-          <div>
+          <div className="lg:border-r lg:border-[#D1D5DB]/60 lg:pr-8">
             {/* TRIADBLUE.COM ECOSYSTEM — always first, always very large */}
             <div className="mb-6">
               <img
@@ -98,7 +98,7 @@ export function Footer() {
           </div>
 
           {/* Products */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
+          <div className="lg:border-r lg:border-[#D1D5DB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
             <h3 className="text-[#09080E] font-semibold text-sm mb-4">Products</h3>
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/domains/search" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Domain Registration</Link></li>
@@ -111,7 +111,7 @@ export function Footer() {
           </div>
 
           {/* Support */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
+          <div className="lg:border-r lg:border-[#D1D5DB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
             <h3 className="text-[#09080E] font-semibold text-sm mb-4">Support</h3>
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/support" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Help Center</Link></li>
@@ -122,7 +122,7 @@ export function Footer() {
           </div>
 
           {/* Company */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
+          <div className="lg:border-r lg:border-[#D1D5DB]/60 lg:pr-8" style={{ paddingLeft: 15 }}>
             <h3 className="text-[#09080E] font-semibold text-sm mb-4">Company</h3>
             <ul className="space-y-2.5 text-sm">
               <li><Link to="/about" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">About</Link></li>
