@@ -6,42 +6,6 @@ export function Footer() {
     <footer className="bg-white border-t border-[#E5E7EB]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Products */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
-            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Products</h3>
-            <ul className="space-y-2.5 text-sm">
-              <li><Link to="/domains/search" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Domain Registration</Link></li>
-              <li><Link to="/hosting" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">WordPress Hosting</Link></li>
-              <li><Link to="/email" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Professional Email</Link></li>
-              <li><Link to="/security" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">SSL Certificates</Link></li>
-              <li><Link to="/security" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">SiteLock Security</Link></li>
-              <li><Link to="/website-builder" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Website Builder</Link></li>
-            </ul>
-          </div>
-
-          {/* Support */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
-            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Support</h3>
-            <ul className="space-y-2.5 text-sm">
-              <li><Link to="/support" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Help Center</Link></li>
-              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">System Status</a></li>
-              <li><Link to="/pricing" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Pricing</Link></li>
-              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Documentation</a></li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div className="lg:border-r lg:border-[#E5E7EB]/60 lg:pr-8">
-            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Company</h3>
-            <ul className="space-y-2.5 text-sm">
-              <li><Link to="/about" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">About</Link></li>
-              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Careers</a></li>
-              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Press</a></li>
-              <li><a href="mailto:support@hostsblue.com" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Contact</a></li>
-              <li><Link to="/panel/login" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Panel Login</Link></li>
-            </ul>
-          </div>
-
           {/* TRIADBLUE.COM Ecosystem */}
           <div>
             {/* TRIADBLUE.COM ECOSYSTEM — always first, always very large */}
@@ -131,6 +95,42 @@ export function Footer() {
               </div>
 
             </div>
+          </div>
+
+          {/* Products */}
+          <div style={{ paddingLeft: 15 }}>
+            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Products</h3>
+            <ul className="space-y-2.5 text-sm">
+              <li><Link to="/domains/search" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Domain Registration</Link></li>
+              <li><Link to="/hosting" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">WordPress Hosting</Link></li>
+              <li><Link to="/email" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Professional Email</Link></li>
+              <li><Link to="/security" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">SSL Certificates</Link></li>
+              <li><Link to="/security" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">SiteLock Security</Link></li>
+              <li><Link to="/website-builder" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Website Builder</Link></li>
+            </ul>
+          </div>
+
+          {/* Support */}
+          <div style={{ paddingLeft: 15 }}>
+            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Support</h3>
+            <ul className="space-y-2.5 text-sm">
+              <li><Link to="/support" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Help Center</Link></li>
+              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">System Status</a></li>
+              <li><Link to="/pricing" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Pricing</Link></li>
+              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Documentation</a></li>
+            </ul>
+          </div>
+
+          {/* Company */}
+          <div style={{ paddingLeft: 15 }}>
+            <h3 className="text-[#09080E] font-semibold text-sm mb-4">Company</h3>
+            <ul className="space-y-2.5 text-sm">
+              <li><Link to="/about" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">About</Link></li>
+              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Careers</a></li>
+              <li><a href="#" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Press</a></li>
+              <li><a href="mailto:support@hostsblue.com" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Contact</a></li>
+              <li><Link to="/panel/login" className="text-[#4B5563] hover:text-[#064A6C] transition-colors">Panel Login</Link></li>
+            </ul>
           </div>
         </div>
 
