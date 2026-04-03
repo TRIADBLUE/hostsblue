@@ -30,6 +30,7 @@ publicDir = "dist/client"
 
 [userenv.shared]
 PORT = "5000"
+WEBHOOK_URL = "https://hostsblue.com/webhooks/swipesblue"
 
 [userenv.development]
 NODE_ENV = "development"
