@@ -50,8 +50,8 @@ app.use((req, res, next) => {
 });
 
 // Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Session configuration
@@ -183,6 +183,32 @@ registerWidgetRoutes(app, db as any);
 
 // Load payment provider setting from DB (non-blocking)
 loadActiveProviderFromDB().catch(() => {});
+
+// DEBUG — test OpenSRS connection directly. DELETE AFTER USE.
+app.get('/api/v1/admin/debug-opensrs', async (req, res) => {
+  if (req.query.secret !== 'hostsblue-setup-2026') return res.status(403).json({ error: 'Forbidden' });
+  const { OpenSRSIntegration } = await import('./services/opensrs-integration.js');
+  const srs = new OpenSRSIntegration();
+  const domain = (req.query.domain as string) || 'testxyz123.com';
+  try {
+    const result = await srs.checkAvailability(domain, ['.com']);
+    res.json({
+      mockMode: (srs as any).isMockMode,
+      apiUrl: (srs as any).apiUrl,
+      hasApiKey: !!(srs as any).apiKey,
+      hasUsername: !!(srs as any).username,
+      result,
+    });
+  } catch (err: any) {
+    res.json({
+      mockMode: (srs as any).isMockMode,
+      apiUrl: (srs as any).apiUrl,
+      hasApiKey: !!(srs as any).apiKey,
+      hasUsername: !!(srs as any).username,
+      error: err.message,
+    });
+  }
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

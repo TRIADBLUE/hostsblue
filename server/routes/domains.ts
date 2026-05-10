@@ -88,33 +88,6 @@ export function registerDomainRoutes(app: Express, ctx: RouteContext) {
     }));
   }));
 
-  // DEBUG — test OpenSRS connection directly. DELETE AFTER USE.
-  app.get('/api/v1/domains/debug-lookup', asyncHandler(async (req, res) => {
-    if (req.query.secret !== 'hostsblue-setup-2026') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    const domain = (req.query.domain as string) || 'testxyz123.com';
-    try {
-      const result = await openSRS.checkAvailability(domain, ['.com']);
-      res.json({
-        mockMode: (openSRS as any).isMockMode,
-        apiUrl: (openSRS as any).apiUrl,
-        hasApiKey: !!(openSRS as any).apiKey,
-        hasUsername: !!(openSRS as any).username,
-        result,
-      });
-    } catch (err: any) {
-      res.json({
-        mockMode: (openSRS as any).isMockMode,
-        apiUrl: (openSRS as any).apiUrl,
-        hasApiKey: !!(openSRS as any).apiKey,
-        hasUsername: !!(openSRS as any).username,
-        error: err.message,
-        stack: err.stack,
-      });
-    }
-  }));
-
   app.get('/api/v1/domains/tlds', asyncHandler(async (req, res) => {
     const tlds = await db.query.tldPricing.findMany({
       where: eq(schema.tldPricing.isActive, true),
