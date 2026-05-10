@@ -14,7 +14,7 @@ import {
   Monitor,
   Server,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { EmailSetupModal } from '@/components/email-setup-modal';
 import { MxRecordsModal } from '@/components/mx-records-modal';
 
@@ -40,6 +40,11 @@ export function EmailPage() {
         <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
+  }
+
+  // No email accounts — go straight to plans
+  if (!accounts || accounts.length === 0) {
+    return <Navigate to="/email" replace />;
   }
 
   return (

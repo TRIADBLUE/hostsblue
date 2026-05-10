@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { hostingApi } from '@/lib/api';
 import { Server, Plus, Loader2, ExternalLink, Settings } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 export function HostingPage() {
   const { data: accounts, isLoading } = useQuery({
@@ -15,6 +15,11 @@ export function HostingPage() {
         <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
+  }
+
+  // No hosting accounts — go straight to plans
+  if (!accounts || accounts.length === 0) {
+    return <Navigate to="/hosting" replace />;
   }
 
   return (

@@ -13,7 +13,7 @@ import {
   X,
   FileText,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 export function SslPage() {
   const queryClient = useQueryClient();
@@ -53,6 +53,11 @@ export function SslPage() {
         <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
+  }
+
+  // No SSL certificates — go straight to security page
+  if (!certificates || certificates.length === 0) {
+    return <Navigate to="/security" replace />;
   }
 
   return (

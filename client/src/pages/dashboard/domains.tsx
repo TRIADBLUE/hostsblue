@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { domainApi } from '@/lib/api';
 import { Globe, Plus, Loader2, ExternalLink, Settings } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 export function DomainsPage() {
   const { data: domains, isLoading } = useQuery({
@@ -15,6 +15,11 @@ export function DomainsPage() {
         <Loader2 className="w-8 h-8 text-[#064A6C] animate-spin" />
       </div>
     );
+  }
+
+  // No domains — go straight to search
+  if (!domains || domains.length === 0) {
+    return <Navigate to="/domains/search" replace />;
   }
 
   return (
