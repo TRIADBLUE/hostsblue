@@ -712,8 +712,9 @@ export function AIBuilder() {
                   // 3. Clean up builder state and redirect
                   localStorage.removeItem(STORAGE_KEY);
                   navigate(`/dashboard/website-builder/${project.uuid}/edit`);
-                } catch (err) {
+                } catch (err: any) {
                   console.error('Generation failed:', err);
+                  alert(err?.message || 'Website generation failed. Please try again.');
                   setIsGenerating(false);
                 }
               }}

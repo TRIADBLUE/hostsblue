@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard, Globe, Server, Cloud, Mail, Shield, Lock, Palette, ShoppingCart,
@@ -31,6 +32,11 @@ const platformLinks = [
 export function DashboardLayout() {
   const location = useLocation();
   const { customer, logout } = useAuth();
+
+  // Scroll to top on every route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return location.pathname === '/dashboard';

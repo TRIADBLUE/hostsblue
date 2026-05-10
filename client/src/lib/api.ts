@@ -18,9 +18,9 @@ class ApiError extends Error {
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
-async function fetchApi<T>(endpoint: string, options: RequestInit & { skipAuthRedirect?: boolean } = {}): Promise<T> {
+async function fetchApi<T>(endpoint: string, options: RequestInit & { skipAuthRedirect?: boolean; skipRefresh?: boolean } = {}): Promise<T> {
   const url = `${API_URL}/api/v1${endpoint}`;
-  const { skipAuthRedirect, ...fetchOptions } = options;
+  const { skipAuthRedirect, skipRefresh, ...fetchOptions } = options;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(fetchOptions.headers as Record<string, string>),
@@ -30,7 +30,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit & { skipAuthRe
   const data = await response.json();
 
   if (!response.ok) {
-    if (response.status === 401 && !skipAuthRedirect) {
+    if (response.status === 401 && !skipRefresh) {
       if (!isRefreshing) {
         isRefreshing = true;
         refreshPromise = refreshToken();
@@ -38,7 +38,7 @@ async function fetchApi<T>(endpoint: string, options: RequestInit & { skipAuthRe
       const refreshed = await refreshPromise;
       isRefreshing = false;
       refreshPromise = null;
-      if (refreshed) return fetchApi(endpoint, options);
+      if (refreshed) return fetchApi(endpoint, { ...options, skipRefresh: true });
     }
     throw new ApiError(data.error || 'An error occurred', response.status, data.code);
   }
